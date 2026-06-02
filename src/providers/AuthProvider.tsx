@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { tokenStorage } from "@/lib/tokenStorage";
@@ -38,73 +38,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Handle setting up the automated silent token refresh timer
-  useEffect(() => {
-    let refreshTimeoutId: NodeJS.Timeout;
-
-    const runSilentRefresh = async () => {
-      const storedRefreshToken = tokenStorage.getRefreshToken();
-      if (!storedRefreshToken) {
-        logout();
-        return;
-      }
-
-      try {
-        const response = await axios.post<RefreshTokenResponse>(
-          `${AUTH_CONSTANTS.API_BASE_URL}auth/refresh-token`,
-          { refreshToken: storedRefreshToken }
-        );
-
-        if (response.data.success && response.data.data) {
-          const { accessToken, refreshToken, expiration } = response.data.data;
-          
-          setLocalAccessToken(accessToken);
-          tokenStorage.setRefreshToken(refreshToken, expiration);
-          
-          // Re-schedule next silent refresh
-          scheduleNextRefresh(expiration);
-        } else {
-          throw new Error("Token refresh returned success: false");
-        }
-      } catch (err) {
-        console.error("Silent refresh failed:", err);
-        logout();
-      }
-    };
-
-    const scheduleNextRefresh = (expirationStr: string) => {
-      if (refreshTimeoutId) clearTimeout(refreshTimeoutId);
-
-      const expiryTime = new Date(expirationStr).getTime();
-      const currentTime = new Date().getTime();
-      const diffMs = expiryTime - currentTime;
-
-      // Refresh 60 seconds before actual token expiration
-      const refreshBuffer = 60 * 1000;
-      const delay = Math.max(diffMs - refreshBuffer, 0);
-
-      // Only schedule if the token is not already expired
-      if (delay > 0) {
-        refreshTimeoutId = setTimeout(runSilentRefresh, delay);
-      } else {
-        // If it's already expiring or buffer exceeds, refresh immediately
-        runSilentRefresh();
-      }
-    };
-
-    // If access token was set/changed, bootstrap/adjust refresh timers
-    const activeToken = getLocalAccessToken();
-    const storedUserData = tokenStorage.getUserData();
-    
-    if (activeToken && storedUserData) {
-      setUser(storedUserData);
+  // Silent refresh implementation
+  const runSilentRefresh = async () => {
+    const storedRefreshToken = tokenStorage.getRefreshToken();
+    if (!storedRefreshToken) {
+      logout();
+      return;
     }
 
+    try {
+      const response = await axios.post<RefreshTokenResponse>(
+        `${AUTH_CONSTANTS.API_BASE_URL}auth/refresh-token`,
+        { refreshToken: storedRefreshToken }
+      );
+
+      if (response.data.success && response.data.data) {
+        const { accessToken, refreshToken, expiration } = response.data.data;
+        
+        setLocalAccessToken(accessToken);
+        tokenStorage.setRefreshToken(refreshToken, expiration);
+        
+        // Re-schedule next silent refresh
+        scheduleNextRefresh(expiration);
+      } else {
+        throw new Error("Token refresh returned success: false");
+      }
+    } catch (err) {
+      console.error("Silent refresh failed:", err);
+      logout();
+    }
+  };
+
+  const scheduleNextRefresh = (expirationStr: string) => {
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+
+    const expiryTime = new Date(expirationStr).getTime();
+    const currentTime = new Date().getTime();
+    const diffMs = expiryTime - currentTime;
+
+    // Refresh 60 seconds before actual token expiration
+    const refreshBuffer = 60 * 1000;
+    const delay = Math.max(diffMs - refreshBuffer, 0);
+
+    if (delay > 0) {
+      refreshTimeoutRef.current = setTimeout(runSilentRefresh, delay);
+    } else {
+      runSilentRefresh();
+    }
+  };
+
+  // Clear timeout on unmount
+  useEffect(() => {
     return () => {
-      if (refreshTimeoutId) clearTimeout(refreshTimeoutId);
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
     };
-  }, [user]);
+  }, []);
 
   // Initial Boot session check
   useEffect(() => {
@@ -141,6 +135,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               location: "Delhi",
             });
           }
+
+          // Schedule automated background silent refresh
+          scheduleNextRefresh(expiration);
         } else {
           tokenStorage.clearTokens();
           setLocalAccessToken(null);
@@ -173,6 +170,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tokenStorage.setUserData(profile);
         
         setUser(profile);
+
+        // Schedule automated background silent refresh
+        scheduleNextRefresh(expiration);
+
         router.push(AUTH_CONSTANTS.ROUTES.DASHBOARD);
       } else {
         throw new Error(response.message || "Login failed");
