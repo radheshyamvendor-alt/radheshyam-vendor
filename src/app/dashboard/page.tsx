@@ -7,6 +7,25 @@ import useAuth from "@/hooks/useAuth";
 import { getDashboardStats, startDelivery } from "@/app/actions/order";
 import OTPModal from "@/components/dashboard/OTPModal";
 
+export interface DashboardOrder {
+  id: string;
+  prescriptionNumber: string | null;
+  status: string;
+  otp: string | null;
+  createdAt: string | Date;
+  patient: {
+    name: string;
+    mobile: string;
+  } | null;
+  orderMedicines: Array<{
+    medicineId: string;
+    quantity: number;
+    medicine: {
+      name: string;
+    };
+  }>;
+}
+
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const queryClient = useQueryClient();
@@ -46,13 +65,13 @@ export default function Dashboard() {
     completedDeliveries: 0,
   };
 
-  const recentOrders = (data && data.success && data.recentOrders) ? data.recentOrders : [];
+  const recentOrders = ((data && data.success && data.recentOrders) ? data.recentOrders : []) as DashboardOrder[];
 
-  const handleStartDelivery = (order: any) => {
+  const handleStartDelivery = (order: DashboardOrder) => {
     startDeliveryMutation.mutate(order.id);
   };
 
-  const handleEnterOtp = (order: any) => {
+  const handleEnterOtp = (order: DashboardOrder) => {
     setOtpOrderId(order.id);
     setOtpPrescriptionNo(order.prescriptionNumber || "");
     setOtpMockCode(order.otp || "");
@@ -129,7 +148,7 @@ export default function Dashboard() {
           </div>
         ) : error ? (
           <div className="p-6 text-center text-error font-medium bg-surface border border-outline-variant rounded-xl glass-card">
-            Failed to sync dashboard statistics: {(error as any).message || "Unknown error"}
+            Failed to sync dashboard statistics: {(error as Error).message || "Unknown error"}
           </div>
         ) : (
           <>
@@ -200,7 +219,7 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-outline-variant">
-                      {recentOrders.map((order: any) => {
+                      {recentOrders.map((order: DashboardOrder) => {
                         const dateFormatted = new Date(order.createdAt).toLocaleDateString("en-IN", {
                           day: "numeric",
                           month: "short",
@@ -227,8 +246,8 @@ export default function Dashboard() {
                             </td>
                             {/* Medicines summary list */}
                             <td className="px-6 py-4">
-                              <div className="max-w-[200px] truncate" title={order.orderMedicines.map((m: any) => `${m.medicine.name} (x${m.quantity})`).join(", ")}>
-                                {order.orderMedicines.map((m: any, idx: number) => (
+                              <div className="max-w-[200px] truncate" title={order.orderMedicines.map((m) => `${m.medicine.name} (x${m.quantity})`).join(", ")}>
+                                {order.orderMedicines.map((m) => (
                                   <span key={m.medicineId} className="block text-xs">
                                     • {m.medicine.name} <span className="font-bold text-primary">x{m.quantity}</span>
                                   </span>

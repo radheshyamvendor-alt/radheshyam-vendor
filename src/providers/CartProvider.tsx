@@ -33,12 +33,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const savedCart = localStorage.getItem("radheshyam_cart");
     if (savedCart) {
       try {
-        setCart(JSON.parse(savedCart));
+        const parsed = JSON.parse(savedCart);
+        setTimeout(() => {
+          setCart(parsed);
+          setIsLoaded(true);
+        }, 0);
+        return;
       } catch (e) {
         console.error("Failed to parse cart from localStorage", e);
       }
     }
-    setIsLoaded(true);
+    setTimeout(() => {
+      setIsLoaded(true);
+    }, 0);
   }, []);
 
   // Save cart to localStorage whenever it changes

@@ -18,7 +18,6 @@ export default function OTPModal({
   onClose,
   prescriptionNumber,
   initialMockOtp,
-  orderId,
 }: OTPModalProps) {
   const accessToken = getLocalAccessToken() || "";
   const queryClient = useQueryClient();

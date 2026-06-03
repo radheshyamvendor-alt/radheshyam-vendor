@@ -86,9 +86,10 @@ export async function createOrder(input: CreateOrderInput) {
 
     revalidatePath("/dashboard");
     return { success: true, data: result };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to create order:", error);
-    return { success: false, error: error.message || "Failed to create order" };
+    const message = error instanceof Error ? error.message : "Failed to create order";
+    return { success: false, error: message };
   }
 }
 
@@ -108,9 +109,10 @@ export async function getOrders() {
       },
     });
     return { success: true, data: orders };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to fetch orders:", error);
-    return { success: false, error: error.message || "Failed to fetch orders" };
+    const message = error instanceof Error ? error.message : "Failed to fetch orders";
+    return { success: false, error: message };
   }
 }
 
@@ -169,9 +171,10 @@ export async function getDashboardStats() {
       },
       recentOrders,
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to fetch dashboard stats:", error);
-    return { success: false, error: error.message || "Failed to fetch dashboard stats" };
+    const message = error instanceof Error ? error.message : "Failed to fetch dashboard stats";
+    return { success: false, error: message };
   }
 }
 
@@ -190,9 +193,10 @@ export async function startDelivery(orderId: string) {
     
     revalidatePath("/dashboard");
     return { success: true, data: order, mockOtp }; // Returning mockOtp so developer/vendor can see/test it easily
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to start delivery:", error);
-    return { success: false, error: error.message || "Failed to start delivery" };
+    const message = error instanceof Error ? error.message : "Failed to start delivery";
+    return { success: false, error: message };
   }
 }
 
@@ -240,17 +244,17 @@ export async function verifyOtpApi(prescriptionNo: string, otp: string, accessTo
     }
     
     return { success: false, error: "Invalid OTP code entered." };
-  } catch (error: any) {
-    return { success: false, error: error.message || "OTP Verification failed" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "OTP Verification failed";
+    return { success: false, error: message };
   }
 }
 
 // Proxy Resend OTP to the HIS Chemist API
 export async function resendOtpApi(prescriptionNo: string, accessToken: string) {
   try {
-    let apiSuccess = false;
     try {
-      const response = await axios.post(
+      await axios.post(
         "https://hischemistapi.ongc.co.in/api/Otp/resend",
         { prescriptionNo },
         {
@@ -259,9 +263,6 @@ export async function resendOtpApi(prescriptionNo: string, accessToken: string) 
           },
         }
       );
-      if (response.data?.success) {
-        apiSuccess = true;
-      }
     } catch (apiError) {
       console.warn("HIS OTP Resend API connection failed, falling back to local DB generation:", apiError);
     }
@@ -282,7 +283,8 @@ export async function resendOtpApi(prescriptionNo: string, accessToken: string) 
     }
 
     return { success: true, message: "OTP resent successfully!", newOtp };
-  } catch (error: any) {
-    return { success: false, error: error.message || "OTP resend failed" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "OTP resend failed";
+    return { success: false, error: message };
   }
 }

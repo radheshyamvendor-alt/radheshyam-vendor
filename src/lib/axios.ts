@@ -23,10 +23,10 @@ const api = axios.create({
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (token: string) => void;
-  reject: (error: any) => void;
+  reject: (error: unknown) => void;
 }> = [];
 
-const processQueue = (error: any, token: string | null = null) => {
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach((promise) => {
     if (error) {
       promise.reject(error);
@@ -56,7 +56,7 @@ api.interceptors.response.use(
     if (!originalRequest) return Promise.reject(error);
 
     // If response is 401 and we haven't already retried this request
-    if (error.response?.status === 401 && !(originalRequest as any)._retry) {
+    if (error.response?.status === 401 && !(originalRequest as InternalAxiosRequestConfig & { _retry?: boolean })._retry) {
       // If we are already refreshing, push this request to the queue
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -67,14 +67,14 @@ api.interceptors.response.use(
               }
               resolve(api(originalRequest));
             },
-            reject: (err: any) => {
+            reject: (err: unknown) => {
               reject(err);
             },
           });
         });
       }
 
-      (originalRequest as any)._retry = true;
+      (originalRequest as InternalAxiosRequestConfig & { _retry?: boolean })._retry = true;
       isRefreshing = true;
 
       const storedRefreshToken = tokenStorage.getRefreshToken();

@@ -2,23 +2,34 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import useAuth from "@/hooks/useAuth";
 import { useCart } from "@/providers/CartProvider";
 import { createOrder, CreateOrderInput } from "@/app/actions/order";
 
+export interface CheckoutItem {
+  medicineId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  stock: number;
+}
+
+export interface CreatedOrder {
+  id: string;
+  prescriptionNumber: string | null;
+  status: string;
+}
+
 export default function Checkout() {
   const { logout } = useAuth();
-  const { cart, totalPrice, clearCart } = useCart();
-  const router = useRouter();
+  const { cart, clearCart } = useCart();
   const queryClient = useQueryClient();
 
   // Wizard Step
   const [step, setStep] = useState(1); // 1: Upload, 2: Review, 3: Success
 
   // File Upload states
-  const [file, setFile] = useState<File | null>(null);
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -29,17 +40,17 @@ export default function Checkout() {
   const [patientAddress, setPatientAddress] = useState("");
   const [patientGender, setPatientGender] = useState("Male");
   const [patientAge, setPatientAge] = useState(30);
-  const [orderItems, setOrderItems] = useState<any[]>([]); // Extracted medicines
+  const [orderItems, setOrderItems] = useState<CheckoutItem[]>([]); // Extracted medicines
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [createdOrder, setCreatedOrder] = useState<any | null>(null);
+  const [createdOrder, setCreatedOrder] = useState<CreatedOrder | null>(null);
 
   // Create Order Mutation
   const createOrderMutation = useMutation({
     mutationFn: (input: CreateOrderInput) => createOrder(input),
     onSuccess: (result) => {
       if (result.success) {
-        setCreatedOrder(result.data);
+        setCreatedOrder(result.data as CreatedOrder);
         clearCart();
         queryClient.invalidateQueries({ queryKey: ["medicines"] });
         queryClient.invalidateQueries({ queryKey: ["catalog-medicines"] });
@@ -85,7 +96,6 @@ export default function Checkout() {
       return;
     }
 
-    setFile(selectedFile);
     setIsOcrProcessing(true);
     setErrorMsg(null);
 
@@ -109,7 +119,14 @@ export default function Checkout() {
         setPatientAge(ocrData.patient.age);
 
         // Merge cart items with extracted medicines to ensure stock/price is correct
-        const items = ocrData.medicines.map((m: any) => ({
+        interface ExtractedMed {
+          id: string;
+          name: string;
+          price: number;
+          quantity: number;
+          stock: number;
+        }
+        const items = ocrData.medicines.map((m: ExtractedMed) => ({
           medicineId: m.id,
           name: m.name,
           price: m.price,
@@ -139,9 +156,10 @@ export default function Checkout() {
       } else {
         setErrorMsg(resData.error || "OCR extraction failed. Please try again.");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || "Failed to communicate with OCR service.");
+      const errMsg = err instanceof Error ? err.message : "Failed to communicate with OCR service.";
+      setErrorMsg(errMsg);
     } finally {
       setIsOcrProcessing(false);
     }

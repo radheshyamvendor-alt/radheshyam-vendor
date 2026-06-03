@@ -17,8 +17,9 @@ export async function POST(req: NextRequest) {
     }
     
     return NextResponse.json({ success: false, error: result.error }, { status: 400 });
-  } catch (error: any) {
+  } catch (error) {
     console.error("API verify route error:", error);
-    return NextResponse.json({ success: false, error: error.message || "OTP verification failed" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "OTP verification failed";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

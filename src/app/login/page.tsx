@@ -50,9 +50,9 @@ export default function Login() {
         email: values.email,
         password: values.password,
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || "Invalid credentials. Please try again.");
+      setErrorMsg(err instanceof Error ? err.message : "Invalid credentials. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

@@ -78,9 +78,9 @@ function ResetPasswordForm() {
       setTimeout(() => {
         router.push(AUTH_CONSTANTS.ROUTES.LOGIN);
       }, 2000);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || "Invalid or expired token. Please request another link.");
+      setErrorMsg(err instanceof Error ? err.message : "Invalid or expired token. Please request another link.");
     } finally {
       setIsSubmitting(false);
     }

@@ -155,9 +155,9 @@ export default function Register() {
       setTimeout(() => {
         router.push(AUTH_CONSTANTS.ROUTES.LOGIN);
       }, 2000);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || "Registration failed. Email might already exist.");
+      setErrorMsg(err instanceof Error ? err.message : "Registration failed. Email might already exist.");
     } finally {
       setIsSubmitting(false);
     }

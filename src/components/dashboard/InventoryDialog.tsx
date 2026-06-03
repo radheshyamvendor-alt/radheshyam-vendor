@@ -17,11 +17,21 @@ const medicineSchema = zod.object({
 
 type MedicineFormValues = zod.infer<typeof medicineSchema>;
 
+interface MedicineItem {
+  id: string;
+  name: string;
+  category: string;
+  description?: string | null;
+  price: number;
+  stock: number;
+  image?: string | null;
+}
+
 interface InventoryDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: MedicineInput) => Promise<void>;
-  medicine?: any | null; // Selected medicine for editing
+  medicine?: MedicineItem | null; // Selected medicine for editing
 }
 
 export default function InventoryDialog({
@@ -88,9 +98,9 @@ export default function InventoryDialog({
         image: values.image || undefined,
       });
       onClose();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || "Failed to save medicine details.");
+      setErrorMsg(err instanceof Error ? err.message : "Failed to save medicine details.");
     } finally {
       setIsSubmitting(false);
     }

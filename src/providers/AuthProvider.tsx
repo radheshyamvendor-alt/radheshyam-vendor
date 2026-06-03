@@ -152,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     bootstrapSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = async (data: LoginRequest) => {

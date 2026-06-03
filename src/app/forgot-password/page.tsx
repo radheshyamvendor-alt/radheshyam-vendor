@@ -40,9 +40,9 @@ export default function ForgotPassword() {
     try {
       await forgotPassword(values.email);
       setSuccessMsg("Password reset token has been sent to your email.");
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || "Email address not found. Please try again.");
+      setErrorMsg(err instanceof Error ? err.message : "Email address not found. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

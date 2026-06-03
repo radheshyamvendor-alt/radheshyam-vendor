@@ -45,6 +45,7 @@ export default function CartPage() {
             Logout
           </button>
           <div className="w-10 h-10 rounded-full bg-surface-container overflow-hidden border border-outline-variant">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img 
               alt="User Avatar" 
               className="w-full h-full object-cover" 
@@ -102,6 +103,7 @@ export default function CartPage() {
                     {/* Item Image */}
                     <div className="w-24 h-24 bg-surface-container-low rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden border border-outline-variant">
                       {item.image ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={item.image} alt={item.name} className="w-full h-full object-contain" />
                       ) : (
                         <span className="material-symbols-outlined text-[48px] text-outline">medication</span>

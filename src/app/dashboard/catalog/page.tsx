@@ -8,6 +8,7 @@ import useAuth from "@/hooks/useAuth";
 import { useCart } from "@/providers/CartProvider";
 import { getMedicines } from "@/app/actions/medicine";
 import CartBar from "@/components/ui/CartBar";
+import { MedicineItem } from "../inventory/page";
 
 export default function Catalog() {
   const { logout } = useAuth();
@@ -26,19 +27,19 @@ export default function Catalog() {
     queryFn: () => getMedicines(search, activeCategory),
   });
 
-  const medicines = queryResult?.success ? (queryResult.data ?? []) : [];
+  const medicines = (queryResult?.success ? (queryResult.data ?? []) : []) as MedicineItem[];
 
   const handleCheckoutRedirect = () => {
     router.push("/dashboard/cart");
   };
 
-  const handleAddToCart = (med: any) => {
+  const handleAddToCart = (med: MedicineItem) => {
     addToCart({
       id: med.id,
       name: med.name,
       price: med.price,
       category: med.category,
-      image: med.image,
+      image: med.image ?? null,
       stock: med.stock
     });
 
@@ -85,6 +86,7 @@ export default function Catalog() {
             Logout
           </button>
           <div className="w-10 h-10 rounded-full bg-surface-container overflow-hidden border border-outline-variant">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img 
               alt="User Avatar" 
               className="w-full h-full object-cover" 
@@ -184,15 +186,15 @@ export default function Catalog() {
             </div>
           ) : error ? (
             <div className="p-6 text-center text-error font-medium bg-surface-container-lowest border border-outline-variant rounded-xl glass-card">
-              Failed to load medicines: {(error as any).message || "Unknown error occurred"}
+              Failed to load medicines: {(error as Error).message || "Unknown error occurred"}
             </div>
           ) : medicines.length === 0 ? (
             <div className="p-12 text-center text-on-surface-variant font-medium bg-surface-container-lowest border border-outline-variant rounded-xl glass-card">
-              No stock medicines found in "{activeCategory}". Add new items in the Inventory panel.
+              No stock medicines found in &quot;{activeCategory}&quot;. Add new items in the Inventory panel.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-lg">
-              {medicines.map((med: any) => {
+              {medicines.map((med: MedicineItem) => {
                 const inCartItem = cart.find((i) => i.id === med.id);
                 const remainingStock = med.stock - (inCartItem?.quantity || 0);
                 const isOutOfStock = remainingStock <= 0;
@@ -210,6 +212,7 @@ export default function Catalog() {
                     {/* Image / Icon container */}
                     <div className="relative h-48 bg-surface-container-low p-md overflow-hidden flex items-center justify-center text-outline">
                       {med.image ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
                         <img
                           src={med.image}
                           alt={med.name}

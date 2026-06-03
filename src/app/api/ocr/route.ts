@@ -80,8 +80,9 @@ export async function POST(req: NextRequest) {
     };
 
     return NextResponse.json({ success: true, data });
-  } catch (error: any) {
+  } catch (error) {
     console.error("OCR API route error:", error);
-    return NextResponse.json({ success: false, error: error.message || "OCR Extraction failed" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "OCR Extraction failed";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

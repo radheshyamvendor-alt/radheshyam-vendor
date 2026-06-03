@@ -21,8 +21,9 @@ export async function POST(req: NextRequest) {
     }
     
     return NextResponse.json({ success: false, error: result.error }, { status: 400 });
-  } catch (error: any) {
+  } catch (error) {
     console.error("API resend route error:", error);
-    return NextResponse.json({ success: false, error: error.message || "OTP resending failed" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "OTP resending failed";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

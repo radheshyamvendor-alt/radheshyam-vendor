@@ -14,7 +14,10 @@ export interface MedicineInput {
 
 export async function getMedicines(search?: string, category?: string) {
   try {
-    const whereClause: any = {};
+    const whereClause: {
+      name?: { contains: string; mode: "insensitive" };
+      category?: string;
+    } = {};
     
     if (search) {
       whereClause.name = {
@@ -35,9 +38,10 @@ export async function getMedicines(search?: string, category?: string) {
     });
     
     return { success: true, data: medicines };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to fetch medicines:", error);
-    return { success: false, error: error.message || "Failed to fetch medicines" };
+    const message = error instanceof Error ? error.message : "Failed to fetch medicines";
+    return { success: false, error: message };
   }
 }
 
@@ -56,9 +60,10 @@ export async function addMedicine(input: MedicineInput) {
     revalidatePath("/dashboard/inventory");
     revalidatePath("/dashboard/catalog");
     return { success: true, data: medicine };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to add medicine:", error);
-    return { success: false, error: error.message || "Failed to add medicine" };
+    const message = error instanceof Error ? error.message : "Failed to add medicine";
+    return { success: false, error: message };
   }
 }
 
@@ -78,9 +83,10 @@ export async function updateMedicine(id: string, input: MedicineInput) {
     revalidatePath("/dashboard/inventory");
     revalidatePath("/dashboard/catalog");
     return { success: true, data: medicine };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to update medicine:", error);
-    return { success: false, error: error.message || "Failed to update medicine" };
+    const message = error instanceof Error ? error.message : "Failed to update medicine";
+    return { success: false, error: message };
   }
 }
 
@@ -92,8 +98,9 @@ export async function deleteMedicine(id: string) {
     revalidatePath("/dashboard/inventory");
     revalidatePath("/dashboard/catalog");
     return { success: true };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to delete medicine:", error);
-    return { success: false, error: error.message || "Failed to delete medicine" };
+    const message = error instanceof Error ? error.message : "Failed to delete medicine";
+    return { success: false, error: message };
   }
 }

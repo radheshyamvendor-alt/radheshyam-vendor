@@ -7,6 +7,18 @@ import useAuth from "@/hooks/useAuth";
 import { getMedicines, addMedicine, updateMedicine, deleteMedicine, MedicineInput } from "@/app/actions/medicine";
 import InventoryDialog from "@/components/dashboard/InventoryDialog";
 
+export interface MedicineItem {
+  id: string;
+  name: string;
+  category: string;
+  description?: string | null;
+  price: number;
+  stock: number;
+  image?: string | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
 export default function Inventory() {
   const { logout } = useAuth();
   const queryClient = useQueryClient();
@@ -16,7 +28,7 @@ export default function Inventory() {
   
   // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingMedicine, setEditingMedicine] = useState<any | null>(null);
+  const [editingMedicine, setEditingMedicine] = useState<MedicineItem | null>(null);
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -28,24 +40,24 @@ export default function Inventory() {
     queryFn: () => getMedicines(search, category),
   });
 
-  const medicines = queryResult?.success ? (queryResult.data ?? []) : [];
+  const medicines = (queryResult?.success ? (queryResult.data ?? []) : []) as MedicineItem[];
 
   // Client-side pagination calculations
   const paginatedMedicines = medicines.slice((page - 1) * pageSize, page * pageSize);
   const totalPages = Math.ceil(medicines.length / pageSize) || 1;
 
   // Bento Stats calculation
-  const totalStock = medicines.reduce((acc, m) => acc + m.stock, 0);
-  const lowStockCount = medicines.filter((m) => m.stock < 10).length;
+  const totalStock = medicines.reduce((acc: number, m: MedicineItem) => acc + m.stock, 0);
+  const lowStockCount = medicines.filter((m: MedicineItem) => m.stock < 10).length;
   // Dynamic expiring calculations based on low stock or older records
-  const expiringSoonCount = medicines.filter((m) => m.stock > 0 && m.stock < 15).length;
-  const activeCategoriesCount = new Set(medicines.map((m) => m.category)).size;
+  const expiringSoonCount = medicines.filter((m: MedicineItem) => m.stock > 0 && m.stock < 15).length;
+  const activeCategoriesCount = new Set(medicines.map((m: MedicineItem) => m.category)).size;
 
   // Category health calculation for dynamic donut chart
-  const tabletsStock = medicines.filter((m) => m.category === "Tablets").reduce((acc, m) => acc + m.stock, 0);
-  const capsulesStock = medicines.filter((m) => m.category === "Capsules").reduce((acc, m) => acc + m.stock, 0);
-  const syrupsStock = medicines.filter((m) => m.category === "Syrups").reduce((acc, m) => acc + m.stock, 0);
-  const otherStock = medicines.filter((m) => m.category !== "Tablets" && m.category !== "Capsules" && m.category !== "Syrups").reduce((acc, m) => acc + m.stock, 0);
+  const tabletsStock = medicines.filter((m: MedicineItem) => m.category === "Tablets").reduce((acc: number, m: MedicineItem) => acc + m.stock, 0);
+  const capsulesStock = medicines.filter((m: MedicineItem) => m.category === "Capsules").reduce((acc: number, m: MedicineItem) => acc + m.stock, 0);
+  const syrupsStock = medicines.filter((m: MedicineItem) => m.category === "Syrups").reduce((acc: number, m: MedicineItem) => acc + m.stock, 0);
+  const otherStock = medicines.filter((m: MedicineItem) => m.category !== "Tablets" && m.category !== "Capsules" && m.category !== "Syrups").reduce((acc: number, m: MedicineItem) => acc + m.stock, 0);
   const totalStockVal = tabletsStock + capsulesStock + syrupsStock + otherStock || 1;
 
   // Circle circumference is 2 * PI * r = 2 * 3.14159 * 40 = 251.2
@@ -57,9 +69,9 @@ export default function Inventory() {
 
   // Live dynamic activity logs compiled from medicines list
   const recentLogs = [...medicines]
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .sort((a: MedicineItem, b: MedicineItem) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .slice(0, 3)
-    .map((med) => {
+    .map((med: MedicineItem) => {
       const timeDiff = Math.abs(new Date().getTime() - new Date(med.updatedAt).getTime());
       const diffMins = Math.floor(timeDiff / (1000 * 60));
       let timeText = "Just now";
@@ -118,7 +130,7 @@ export default function Inventory() {
     setIsDialogOpen(true);
   };
 
-  const handleOpenEditDialog = (med: any) => {
+  const handleOpenEditDialog = (med: MedicineItem) => {
     setEditingMedicine(med);
     setIsDialogOpen(true);
   };
@@ -145,7 +157,7 @@ export default function Inventory() {
   const handleExportCSV = () => {
     if (medicines.length === 0) return;
     const headers = ["ID", "Name", "Category", "Description", "Price", "Stock", "Updated At"];
-    const rows = medicines.map((m: any) => [
+    const rows = medicines.map((m: MedicineItem) => [
       m.id,
       `"${m.name.replace(/"/g, '""')}"`,
       m.category,
@@ -168,7 +180,7 @@ export default function Inventory() {
   // Mock Expiry calculation based on record ID
   const getMockExpiry = (id: string, name: string) => {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const charSum = id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) + name.charCodeAt(0);
+    const charSum = id.split("").reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) + name.charCodeAt(0);
     const year = 2026 + (charSum % 2);
     const month = months[charSum % 12];
     return `${month} ${year}`;
@@ -215,6 +227,7 @@ export default function Inventory() {
               Logout
             </button>
             <div className="w-10 h-10 rounded-full bg-surface-container-highest overflow-hidden border border-outline-variant">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
                 alt="User Avatar" 
                 className="w-full h-full object-cover" 
@@ -368,11 +381,11 @@ export default function Inventory() {
               </div>
             ) : error ? (
               <div className="p-6 text-center text-error font-medium">
-                Failed to load medicines: {(error as any).message || "Database connection error"}
+                Failed to load medicines: {(error as Error).message || "Database connection error"}
               </div>
             ) : medicines.length === 0 ? (
               <div className="p-12 text-center text-on-surface-variant font-medium">
-                No medicines found. Click "Add Medicine" to register new medical supplies.
+                No medicines found. Click &quot;Add Medicine&quot; to register new medical supplies.
               </div>
             ) : (
               <table className="w-full text-left border-collapse">
@@ -387,7 +400,7 @@ export default function Inventory() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant">
-                  {paginatedMedicines.map((med: any) => {
+                  {paginatedMedicines.map((med: MedicineItem) => {
                     // Progress bar colors and percentages
                     const percent = Math.min(100, Math.round((med.stock / 500) * 100));
                     const isOutOfStock = med.stock === 0;
@@ -401,6 +414,7 @@ export default function Inventory() {
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-surface-container border border-outline-variant overflow-hidden flex items-center justify-center text-outline shrink-0">
                               {med.image ? (
+                                /* eslint-disable-next-line @next/next/no-img-element */
                                 <img src={med.image} alt={med.name} className="w-full h-full object-cover" />
                               ) : (
                                 <span className="material-symbols-outlined text-[20px]">medication</span>
