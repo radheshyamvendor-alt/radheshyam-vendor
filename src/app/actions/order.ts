@@ -348,3 +348,175 @@ export async function completeOrderLocal(prescriptionNo: string) {
   }
 }
 
+export async function deleteOrder(orderId: string) {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        orderMedicines: true,
+      },
+    });
+
+    if (!order) {
+      return { success: false, error: "Order not found" };
+    }
+
+    if (order.status === "COMPLETED") {
+      return { success: false, error: "Completed orders cannot be deleted" };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Restore stock for all medicines in the order
+      for (const item of order.orderMedicines) {
+        const medicine = await tx.medicine.findUnique({
+          where: { id: item.medicineId },
+        });
+        if (medicine) {
+          await tx.medicine.update({
+            where: { id: item.medicineId },
+            data: { stock: medicine.stock + item.quantity },
+          });
+        }
+      }
+
+      // Delete order medicines relations
+      await tx.orderMedicine.deleteMany({
+        where: { orderId },
+      });
+
+      // Delete the order
+      await tx.order.delete({
+        where: { id: orderId },
+      });
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/otp");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete order:", error);
+    const message = error instanceof Error ? error.message : "Failed to delete order";
+    return { success: false, error: message };
+  }
+}
+
+export interface UpdateOrderPatientInput {
+  name: string;
+  mobile: string;
+  address: string;
+}
+
+export interface UpdateOrderItemInput {
+  medicineId: string;
+  quantity: number;
+}
+
+export interface UpdateOrderInput {
+  prescriptionNumber: string;
+  patient: UpdateOrderPatientInput;
+  items: UpdateOrderItemInput[];
+}
+
+export async function updateOrder(orderId: string, input: UpdateOrderInput) {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        orderMedicines: true,
+      },
+    });
+
+    if (!order) {
+      return { success: false, error: "Order not found" };
+    }
+
+    if (order.status === "COMPLETED") {
+      return { success: false, error: "Completed orders cannot be modified" };
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      let patientId = order.patientId;
+
+      if (patientId) {
+        if (input.prescriptionNumber !== order.prescriptionNumber) {
+          const conflictingPatient = await tx.patient.findUnique({
+            where: { prescriptionNumber: input.prescriptionNumber },
+          });
+          if (conflictingPatient && conflictingPatient.id !== patientId) {
+            throw new Error(`A patient with prescription number "${input.prescriptionNumber}" already exists.`);
+          }
+        }
+
+        await tx.patient.update({
+          where: { id: patientId },
+          data: {
+            prescriptionNumber: input.prescriptionNumber,
+            name: input.patient.name,
+            mobile: input.patient.mobile,
+            address: input.patient.address,
+          },
+        });
+      }
+
+      // Restore stock for old medicines
+      for (const item of order.orderMedicines) {
+        const medicine = await tx.medicine.findUnique({
+          where: { id: item.medicineId },
+        });
+        if (medicine) {
+          await tx.medicine.update({
+            where: { id: item.medicineId },
+            data: { stock: medicine.stock + item.quantity },
+          });
+        }
+      }
+
+      // Clear old OrderMedicine records
+      await tx.orderMedicine.deleteMany({
+        where: { orderId },
+      });
+
+      // Insert new OrderMedicine records and deduct stock
+      for (const item of input.items) {
+        await tx.orderMedicine.create({
+          data: {
+            orderId,
+            medicineId: item.medicineId,
+            quantity: item.quantity,
+          },
+        });
+
+        const medicine = await tx.medicine.findUnique({
+          where: { id: item.medicineId },
+        });
+
+        if (medicine) {
+          const newStock = Math.max(0, medicine.stock - item.quantity);
+          await tx.medicine.update({
+            where: { id: item.medicineId },
+            data: { stock: newStock },
+          });
+        }
+      }
+
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          prescriptionNumber: input.prescriptionNumber,
+        },
+      });
+
+      return updatedOrder;
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/otp");
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Failed to update order:", error);
+    const message = error instanceof Error ? error.message : "Failed to update order";
+    return { success: false, error: message };
+  }
+}
+
+

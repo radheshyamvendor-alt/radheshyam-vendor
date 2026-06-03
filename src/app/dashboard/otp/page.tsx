@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import useAuth from "@/hooks/useAuth";
-import { getDashboardStats, startDelivery, getOrders } from "@/app/actions/order";
+import { getDashboardStats, startDelivery, getOrders, deleteOrder, updateOrder } from "@/app/actions/order";
 import OTPModal from "@/components/dashboard/OTPModal";
+import EditOrderDialog from "@/components/dashboard/EditOrderDialog";
 import Header from "@/components/dashboard/Header";
 import BottomNav from "@/components/dashboard/BottomNav";
 
@@ -18,6 +19,7 @@ export interface DashboardOrder {
   patient: {
     name: string;
     mobile: string;
+    address: string;
   } | null;
   orderMedicines: Array<{
     medicineId: string;
@@ -36,6 +38,10 @@ export default function OTPVerificationPage() {
   const [isOtpOpen, setIsOtpOpen] = useState(false);
   const [otpPrescriptionNo, setOtpPrescriptionNo] = useState("");
   const [otpOrderId, setOtpOrderId] = useState("");
+
+  // Edit Order modal states
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<DashboardOrder | null>(null);
 
   // Pagination states
   const [page, setPage] = useState(1);
@@ -69,6 +75,32 @@ export default function OTPVerificationPage() {
     },
   });
 
+  // Delete order mutation
+  const deleteOrderMutation = useMutation({
+    mutationFn: (orderId: string) => deleteOrder(orderId),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["orders"] });
+      } else {
+        alert(result.error || "Failed to delete order");
+      }
+    },
+  });
+
+  // Update order mutation
+  const updateOrderMutation = useMutation({
+    mutationFn: ({ orderId, input }: { orderId: string; input: any }) => updateOrder(orderId, input),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["orders"] });
+      } else {
+        alert(result.error || "Failed to update order");
+      }
+    },
+  });
+
   const stats = (data && data.success && data.stats) ? data.stats : {
     totalMedicines: 0,
     ordersToday: 0,
@@ -88,6 +120,19 @@ export default function OTPVerificationPage() {
     setOtpOrderId(order.id);
     setOtpPrescriptionNo(order.prescriptionNumber || "");
     setIsOtpOpen(true);
+  };
+
+  const handleDeleteOrder = (orderId: string) => {
+    if (confirm("Are you sure you want to cancel and delete this order? All reserved medicine stocks will be returned to inventory.")) {
+      deleteOrderMutation.mutate(orderId);
+    }
+  };
+
+  const handleUpdateOrderSubmit = async (orderId: string, input: any) => {
+    const res = await updateOrderMutation.mutateAsync({ orderId, input });
+    if (!res.success) {
+      throw new Error(res.error || "Failed to update order");
+    }
   };
 
   const isLoading = isStatsLoading || isOrdersLoading;
@@ -270,31 +315,51 @@ export default function OTPVerificationPage() {
                               </td>
                               {/* Action Button */}
                               <td className="px-6 py-4 text-right">
-                                {order.status === "PENDING" && (
-                                  <button
-                                    onClick={() => handleStartDelivery(order)}
-                                    disabled={startDeliveryMutation.isPending}
-                                    className="px-3 py-1.5 bg-[#003d9b] text-white rounded-lg text-xs font-bold shadow hover:opacity-90 active:scale-95 transition-all flex items-center gap-1 ml-auto"
-                                  >
-                                    <span className="material-symbols-outlined text-xs">local_shipping</span>
-                                    <span>Start Delivery</span>
-                                  </button>
-                                )}
-                                {order.status === "SHIPPED" && (
-                                  <button
-                                    onClick={() => handleEnterOtp(order)}
-                                    className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-bold shadow hover:bg-amber-600 active:scale-95 transition-all flex items-center gap-1 ml-auto"
-                                  >
-                                    <span className="material-symbols-outlined text-xs">lock_open</span>
-                                    <span>Verify OTP</span>
-                                  </button>
-                                )}
-                                {order.status === "COMPLETED" && (
-                                  <span className="text-xs font-bold text-on-surface-variant flex items-center justify-end gap-1 select-none">
-                                    <span className="material-symbols-outlined text-xs text-emerald-600">check_circle</span>
-                                    <span>Delivered</span>
-                                  </span>
-                                )}
+                                <div className="flex items-center justify-end gap-sm">
+                                  {order.status !== "COMPLETED" && (
+                                    <>
+                                      <button
+                                        onClick={() => { setEditingOrder(order); setIsEditOpen(true); }}
+                                        className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+                                        title="Edit Order"
+                                      >
+                                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteOrder(order.id)}
+                                        className="p-1.5 rounded-lg text-error hover:bg-error/10 transition-colors"
+                                        title="Delete/Cancel Order"
+                                      >
+                                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                                      </button>
+                                    </>
+                                  )}
+                                  {order.status === "PENDING" && (
+                                    <button
+                                      onClick={() => handleStartDelivery(order)}
+                                      disabled={startDeliveryMutation.isPending}
+                                      className="px-3 py-1.5 bg-[#003d9b] text-white rounded-lg text-xs font-bold shadow hover:opacity-90 active:scale-95 transition-all flex items-center gap-1 shrink-0"
+                                    >
+                                      <span className="material-symbols-outlined text-xs">local_shipping</span>
+                                      <span>Start Delivery</span>
+                                    </button>
+                                  )}
+                                  {order.status === "SHIPPED" && (
+                                    <button
+                                      onClick={() => handleEnterOtp(order)}
+                                      className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-bold shadow hover:bg-amber-600 active:scale-95 transition-all flex items-center gap-1 shrink-0"
+                                    >
+                                      <span className="material-symbols-outlined text-xs">lock_open</span>
+                                      <span>Verify OTP</span>
+                                    </button>
+                                  )}
+                                  {order.status === "COMPLETED" && (
+                                    <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1 select-none shrink-0">
+                                      <span className="material-symbols-outlined text-xs text-emerald-600">check_circle</span>
+                                      <span>Delivered</span>
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );
@@ -379,7 +444,25 @@ export default function OTPVerificationPage() {
                             <span className="text-[10px] text-on-surface-variant font-medium">
                               {dateFormatted}
                             </span>
-                            <div>
+                            <div className="flex items-center gap-2">
+                              {order.status !== "COMPLETED" && (
+                                <div className="flex gap-1 mr-1">
+                                  <button
+                                    onClick={() => { setEditingOrder(order); setIsEditOpen(true); }}
+                                    className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+                                    title="Edit Order"
+                                  >
+                                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteOrder(order.id)}
+                                    className="p-1.5 rounded-lg text-error hover:bg-error/10 transition-colors"
+                                    title="Delete Order"
+                                  >
+                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                  </button>
+                                </div>
+                              )}
                               {order.status === "PENDING" && (
                                 <button
                                   onClick={() => handleStartDelivery(order)}
@@ -441,6 +524,14 @@ export default function OTPVerificationPage() {
         onClose={() => setIsOtpOpen(false)}
         prescriptionNumber={otpPrescriptionNo}
         orderId={otpOrderId}
+      />
+
+      {/* Edit Order Modal */}
+      <EditOrderDialog
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        onSubmit={handleUpdateOrderSubmit}
+        order={editingOrder}
       />
 
       {/* Shared Responsive Bottom Navigation */}
