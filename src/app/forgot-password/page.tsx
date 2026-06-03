@@ -19,6 +19,7 @@ export default function ForgotPassword() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const {
     register: registerField,
@@ -48,73 +49,105 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="relative w-full max-w-[440px] z-10 mx-auto my-12 p-4 md:p-0">
-      {/* Background Decorative Elements */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary-container/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-secondary-container/10 rounded-full blur-3xl"></div>
+    <main className="min-h-screen flex flex-col px-margin-mobile pt-12 pb-10 max-w-md mx-auto relative">
+      {/* Subtle Background Decorations */}
+      <div className="fixed -bottom-24 -right-24 w-64 h-64 bg-primary-container/20 rounded-full blur-3xl -z-10"></div>
+      <div className="fixed top-1/4 -left-12 w-48 h-48 bg-secondary-container/10 rounded-full blur-2xl -z-10"></div>
+
+      {/* Brand & Back Button */}
+      <div className="flex items-center justify-between mb-8">
+        <Link
+          href={AUTH_CONSTANTS.ROUTES.LOGIN}
+          className="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-lowest shadow-sm border border-outline-variant text-on-surface-variant active:scale-95 transition-transform"
+          aria-label="Go back to login"
+        >
+          <span className="material-symbols-outlined">arrow_back</span>
+        </Link>
+        <span className="font-headline-md text-headline-md font-bold text-primary text-center">Radheshyam Medical</span>
+        <div className="w-10"></div> {/* Spacer for symmetry */}
       </div>
 
-      {/* Brand Identity */}
-      <div className="flex flex-col items-center mb-6">
-        <div className="bg-primary rounded-xl p-3 shadow-lg mb-4 flex items-center justify-center transform hover:rotate-3 transition-transform duration-300">
-          <span className="material-symbols-outlined text-on-primary text-[32px]">lock_reset</span>
+      {/* Recovery details header */}
+      <div className="mb-10 bg-surface-container-lowest rounded-xl p-4 flex items-center gap-4 shadow-sm border border-outline-variant">
+        <div className="bg-primary-container/20 w-12 h-12 rounded-full flex items-center justify-center text-primary">
+          <span className="material-symbols-outlined text-[24px]">lock_reset</span>
         </div>
-        <h1 className="font-headline-md text-headline-md text-on-surface mb-1">Reset Password</h1>
-        <p className="font-body-md text-on-surface-variant text-center px-8">Retrieve secure access credentials for your facility</p>
+        <div>
+          <p className="font-label-md text-label-md text-on-surface-variant mb-0.5">Account Security</p>
+          <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Reset Password</h1>
+        </div>
       </div>
 
-      {/* Forgot Card */}
-      <div className="bg-surface border border-outline-variant shadow-sm rounded-xl p-margin-desktop glass-card">
-        {errorMsg && (
-          <div className="mb-4 p-3 bg-error-container/30 border border-error text-error text-sm rounded-lg flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px]">error</span>
-            <span>{errorMsg}</span>
-          </div>
-        )}
+      {/* Prompt message */}
+      <p className="font-body-md text-body-md text-on-surface-variant mb-8 ml-1 leading-relaxed">
+        Enter your registered email address below. We will send you a secure verification token to restore access.
+      </p>
 
-        {successMsg && (
-          <div className="mb-4 p-3 bg-tertiary/10 border border-tertiary-container text-tertiary-container text-sm rounded-lg flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px]">check_circle</span>
-              <span className="font-medium">{successMsg}</span>
-            </div>
-            <Link 
-              href={`${AUTH_CONSTANTS.ROUTES.RESET_PASSWORD}?email=${encodeURIComponent(getValues("email") || "")}`}
-              className="text-xs text-primary underline hover:text-primary-container font-semibold"
+      {/* Error/Success Feedbacks */}
+      {errorMsg && (
+        <div className="mb-6 p-3 bg-error-container/30 border border-error text-error text-sm rounded-xl flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px]">error</span>
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="mb-6 p-4 bg-tertiary-container/10 border border-tertiary-container text-on-surface text-sm rounded-xl flex flex-col gap-3">
+          <div className="flex items-center gap-2 text-tertiary">
+            <span className="material-symbols-outlined text-[20px]">check_circle</span>
+            <span className="font-semibold">{successMsg}</span>
+          </div>
+          <Link
+            href={`${AUTH_CONSTANTS.ROUTES.RESET_PASSWORD}?email=${encodeURIComponent(getValues("email") || "")}`}
+            className="text-xs text-primary font-bold hover:underline flex items-center gap-1 mt-1"
+          >
+            <span>Proceed to enter token & reset password</span>
+            <span className="material-symbols-outlined text-xs">arrow_forward</span>
+          </Link>
+        </div>
+      )}
+
+      {/* Recovery Form */}
+      <form onSubmit={handleSubmit(onSubmit)} className="flex-grow flex flex-col justify-between">
+        <div className="space-y-6">
+          {/* Email Address */}
+          <div className="space-y-1.5 group">
+            <label
+              className={`font-label-md text-label-md ml-1 transition-colors ${
+                focusedField === "email" ? "text-primary" : "text-on-surface-variant"
+              }`}
+              htmlFor="email"
             >
-              Go to Reset Form to enter token &rarr;
-            </Link>
-          </div>
-        )}
-
-        <form className="space-y-stack-lg" onSubmit={handleSubmit(onSubmit)}>
-          {/* Email Input */}
-          <div className="space-y-stack-sm">
-            <label className="font-label-md text-label-md text-on-surface-variant block ml-1" htmlFor="email">
-              Enter Registered Email Address
+              Registered Email Address
             </label>
-            <div className="relative group">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
+            <div className="relative">
+              <span
+                className={`material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[20px] transition-colors ${
+                  focusedField === "email" ? "text-primary" : "text-on-surface-variant"
+                }`}
+                style={{ fontVariationSettings: focusedField === "email" ? "'FILL' 1" : "'FILL' 0" }}
+              >
                 mail
               </span>
               <input
                 {...registerField("email")}
-                className="w-full pl-12 pr-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none text-body-md font-body-md placeholder:text-outline-variant"
+                onFocus={() => setFocusedField("email")}
+                onBlur={() => setFocusedField(null)}
+                className="w-full pl-12 pr-4 py-3.5 bg-surface-container-lowest border border-outline-variant rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all font-body-md text-body-md placeholder:text-outline/60"
                 id="email"
-                placeholder="chemist@gmail.com"
+                placeholder="sameer.s@clinic.com"
                 type="email"
                 disabled={isSubmitting}
               />
             </div>
-            {errors.email && (
-              <p className="text-xs text-error ml-1 mt-1">{errors.email.message}</p>
-            )}
+            {errors.email && <p className="text-xs text-error ml-1 mt-0.5">{errors.email.message}</p>}
           </div>
+        </div>
 
-          {/* Submit Button */}
+        {/* CTA Section */}
+        <div className="mt-10 space-y-6">
           <button
-            className="w-full bg-primary hover:bg-primary-container text-on-primary font-headline-sm text-headline-sm py-4 rounded-lg shadow-md hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center space-x-2 disabled:opacity-75 disabled:cursor-not-allowed"
+            className="w-full h-14 bg-primary text-on-primary rounded-xl font-label-md text-label-md flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-all hover:bg-on-primary-fixed-variant disabled:opacity-75 disabled:cursor-not-allowed"
             type="submit"
             disabled={isSubmitting}
           >
@@ -133,22 +166,19 @@ export default function ForgotPassword() {
               </>
             )}
           </button>
-        </form>
 
-        <div className="mt-stack-lg pt-stack-lg border-t border-outline-variant">
-          <div className="text-center">
-            <Link href={AUTH_CONSTANTS.ROUTES.LOGIN} className="inline-flex items-center space-x-2 text-primary font-headline-sm text-headline-sm hover:-translate-x-1 transition-transform group">
-              <span className="material-symbols-outlined text-body-lg">arrow_back</span>
-              <span>Back to Login</span>
+          <p className="text-center font-body-sm text-body-sm text-on-surface-variant">
+            Already remembered?{" "}
+            <Link href={AUTH_CONSTANTS.ROUTES.LOGIN} className="text-primary font-bold hover:underline">
+              Log In
             </Link>
+          </p>
+
+          <div className="pt-6 border-t border-outline-variant text-center">
+            <p className="text-[10px] text-outline uppercase tracking-widest">© 2026 Radheshyam Medical Group. All Rights Reserved.</p>
           </div>
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className="mt-6 text-center text-[10px] text-outline uppercase tracking-widest">
-        © 2026 Radheshyam Medical Group. All Rights Reserved.
-      </div>
-    </div>
+      </form>
+    </main>
   );
 }
