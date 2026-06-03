@@ -3,6 +3,8 @@ import "./globals.css";
 import QueryProvider from "@/providers/QueryProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
 
+import { CartProvider } from "@/providers/CartProvider";
+
 export const metadata: Metadata = {
   title: "Radheshyam Medical - Authentication Portal",
   description: "Secured Access for Medical Professionals & Pharmacies",
@@ -23,7 +25,9 @@ export default function RootLayout({
       <body className="bg-background font-body-md text-on-surface antialiased">
         <QueryProvider>
           <AuthProvider>
-            {children}
+            <CartProvider>
+              {children}
+            </CartProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

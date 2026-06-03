@@ -1,0 +1,28 @@
+import { NextRequest, NextResponse } from "next/server";
+import { resendOtpApi } from "@/app/actions/order";
+
+export async function POST(req: NextRequest) {
+  try {
+    const { prescriptionNo } = await req.json();
+    const authHeader = req.headers.get("Authorization") || "";
+    const accessToken = authHeader.replace("Bearer ", "").trim();
+
+    if (!prescriptionNo) {
+      return NextResponse.json({ success: false, error: "Missing prescriptionNo" }, { status: 400 });
+    }
+
+    const result = await resendOtpApi(prescriptionNo, accessToken);
+    if (result.success) {
+      return NextResponse.json({ 
+        success: true, 
+        message: result.message, 
+        newOtp: result.newOtp 
+      });
+    }
+    
+    return NextResponse.json({ success: false, error: result.error }, { status: 400 });
+  } catch (error: any) {
+    console.error("API resend route error:", error);
+    return NextResponse.json({ success: false, error: error.message || "OTP resending failed" }, { status: 500 });
+  }
+}

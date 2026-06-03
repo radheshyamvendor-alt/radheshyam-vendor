@@ -1,0 +1,58 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Medicine {
+  id          String          @id @default(uuid())
+  name        String
+  category    String          // Tablets, Capsules, Syrups, Injections, Drops, Ointments, Medical Devices, Other
+  description String?
+  price       Float
+  stock       Int
+  image       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  orderItems  OrderMedicine[]
+}
+
+model Patient {
+  id                 String   @id @default(uuid())
+  prescriptionNumber String   @unique
+  name               String
+  mobile             String
+  address            String
+  gender             String
+  age                Int
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  orders             Order[]
+}
+
+model Order {
+  id                 String          @id @default(uuid())
+  prescriptionNumber String?
+  patientId          String?
+  patient            Patient?        @relation(fields: [patientId], references: [id])
+  status             String          // PENDING, SHIPPED, COMPLETED
+  otp                String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  orderMedicines     OrderMedicine[]
+}
+
+model OrderMedicine {
+  orderId    String
+  medicineId String
+  quantity   Int
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  medicine   Medicine @relation(fields: [medicineId], references: [id])
+
+  @@id([orderId, medicineId])
+}
