@@ -102,6 +102,18 @@ export default function CartPage() {
 
   const handleConfirmOcr = () => {
     if (!pendingOcr) return;
+
+    // Validate phone number (exactly 10 digits)
+    const mobileDigits = pendingOcr.patient.mobile.replace(/\D/g, "");
+    if (mobileDigits.length !== 10) {
+      setOcrError("Mobile number must be exactly 10 digits.");
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
+    pendingOcr.patient.mobile = mobileDigits;
+
     if (typeof window !== "undefined") {
       localStorage.setItem(
         "radheshyam_scanned_rx",
@@ -185,6 +197,13 @@ export default function CartPage() {
                     <span>{isEditingOcr ? "Done" : "Edit"}</span>
                   </button>
                 </div>
+
+                {ocrError && (
+                  <div className="p-3 bg-error-container/20 border border-error/20 text-error rounded-xl flex items-center gap-3 text-sm">
+                    <span className="material-symbols-outlined text-[18px]">error</span>
+                    <span>{ocrError}</span>
+                  </div>
+                )}
 
                 {isEditingOcr ? (
                   <div className="space-y-3 text-sm border border-outline-variant rounded-xl p-3 bg-surface">
@@ -402,6 +421,13 @@ export default function CartPage() {
                     <span>{isEditingOcr ? "Done" : "Edit"}</span>
                   </button>
                 </div>
+
+                {ocrError && (
+                  <div className="p-3 bg-error-container/20 border border-error/20 text-error rounded-xl flex items-center gap-3 text-sm">
+                    <span className="material-symbols-outlined text-[18px]">error</span>
+                    <span>{ocrError}</span>
+                  </div>
+                )}
 
                 {isEditingOcr ? (
                   <div className="space-y-3 text-sm border border-outline-variant rounded-xl p-3 bg-surface">

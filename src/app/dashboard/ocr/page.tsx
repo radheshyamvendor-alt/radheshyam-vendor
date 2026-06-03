@@ -120,6 +120,17 @@ export default function OcrPage() {
   const handleConfirmAndAdd = () => {
     if (!pendingResult) return;
 
+    // Validate phone number (exactly 10 digits)
+    const mobileDigits = pendingResult.patient.mobile.replace(/\D/g, "");
+    if (mobileDigits.length !== 10) {
+      setOcrError("Mobile number must be exactly 10 digits.");
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
+    pendingResult.patient.mobile = mobileDigits;
+
     // Save prescription details to localStorage
     if (typeof window !== "undefined") {
       localStorage.setItem(

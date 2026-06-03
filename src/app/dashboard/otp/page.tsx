@@ -180,60 +180,135 @@ export default function OTPVerificationPage() {
                   No orders placed yet. Head over to the Medicine Catalog to create one!
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-left text-sm text-on-surface">
-                    <thead className="bg-surface-container-lowest text-xs uppercase text-on-surface-variant font-bold border-b border-outline-variant select-none">
-                      <tr>
-                        <th className="px-6 py-4">Prescription No</th>
-                        <th className="px-6 py-4">Patient Details</th>
-                        <th className="px-6 py-4">Ordered Medicines</th>
-                        <th className="px-6 py-4">Order Date</th>
-                        <th className="px-6 py-4 text-center">Status</th>
-                        <th className="px-6 py-4 text-right">Delivery Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-outline-variant">
-                      {recentOrders.map((order: DashboardOrder) => {
-                        const dateFormatted = new Date(order.createdAt).toLocaleDateString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        });
+                <>
+                  {/* Table View — shown on Medium screens and up */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full border-collapse text-left text-sm text-on-surface">
+                      <thead className="bg-surface-container-lowest text-xs uppercase text-on-surface-variant font-bold border-b border-outline-variant select-none">
+                        <tr>
+                          <th className="px-6 py-4">Prescription No</th>
+                          <th className="px-6 py-4">Patient Details</th>
+                          <th className="px-6 py-4">Ordered Medicines</th>
+                          <th className="px-6 py-4">Order Date</th>
+                          <th className="px-6 py-4 text-center">Status</th>
+                          <th className="px-6 py-4 text-right">Delivery Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-outline-variant">
+                        {recentOrders.map((order: DashboardOrder) => {
+                          const dateFormatted = new Date(order.createdAt).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          });
 
-                        return (
-                          <tr key={order.id} className="hover:bg-surface-container-low transition-colors">
-                            {/* Prescription Number */}
-                            <td className="px-6 py-4 font-mono font-semibold text-primary">
-                              {order.prescriptionNumber || "No Prescription"}
-                            </td>
-                            {/* Patient Info */}
-                            <td className="px-6 py-4">
-                              <div>
-                                <span className="font-semibold block text-on-surface">
-                                  {order.patient?.name || "Anonymous Patient"}
-                                </span>
-                                <span className="text-[10px] text-on-surface-variant block">
-                                  {order.patient?.mobile}
-                                </span>
-                              </div>
-                            </td>
-                            {/* Medicines summary list */}
-                            <td className="px-6 py-4">
-                              <div className="max-w-[200px] truncate" title={order.orderMedicines.map((m) => `${m.medicine.name} (x${m.quantity})`).join(", ")}>
-                                {order.orderMedicines.map((m) => (
-                                  <span key={m.medicineId} className="block text-xs">
-                                    • {m.medicine.name} <span className="font-bold text-[#003d9b]">x{m.quantity}</span>
+                          return (
+                            <tr key={order.id} className="hover:bg-surface-container-low transition-colors">
+                              {/* Prescription Number */}
+                              <td className="px-6 py-4 font-mono font-semibold text-primary">
+                                {order.prescriptionNumber || "No Prescription"}
+                              </td>
+                              {/* Patient Info */}
+                              <td className="px-6 py-4">
+                                <div>
+                                  <span className="font-semibold block text-on-surface">
+                                    {order.patient?.name || "Anonymous Patient"}
                                   </span>
-                                ))}
-                              </div>
-                            </td>
-                            {/* Date */}
-                            <td className="px-6 py-4 text-on-surface-variant font-medium text-xs">
-                              {dateFormatted}
-                            </td>
-                            {/* Status badge */}
-                            <td className="px-6 py-4 text-center">
+                                  <span className="text-[10px] text-on-surface-variant block">
+                                    {order.patient?.mobile}
+                                  </span>
+                                </div>
+                              </td>
+                              {/* Medicines summary list */}
+                              <td className="px-6 py-4">
+                                <div className="max-w-[200px] truncate" title={order.orderMedicines.map((m) => `${m.medicine.name} (x${m.quantity})`).join(", ")}>
+                                  {order.orderMedicines.map((m) => (
+                                    <span key={m.medicineId} className="block text-xs">
+                                      • {m.medicine.name} <span className="font-bold text-[#003d9b]">x{m.quantity}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                              {/* Date */}
+                              <td className="px-6 py-4 text-on-surface-variant font-medium text-xs">
+                                {dateFormatted}
+                              </td>
+                              {/* Status badge */}
+                              <td className="px-6 py-4 text-center">
+                                {order.status === "PENDING" && (
+                                  <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-600">
+                                    Pending
+                                  </span>
+                                )}
+                                {order.status === "SHIPPED" && (
+                                  <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-primary/10 border border-primary-container/30 text-[#003d9b]">
+                                    Shipped
+                                  </span>
+                                )}
+                                {order.status === "COMPLETED" && (
+                                  <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600">
+                                    Completed
+                                  </span>
+                                )}
+                              </td>
+                              {/* Action Button */}
+                              <td className="px-6 py-4 text-right">
+                                {order.status === "PENDING" && (
+                                  <button
+                                    onClick={() => handleStartDelivery(order)}
+                                    disabled={startDeliveryMutation.isPending}
+                                    className="px-3 py-1.5 bg-[#003d9b] text-white rounded-lg text-xs font-bold shadow hover:opacity-90 active:scale-95 transition-all flex items-center gap-1 ml-auto"
+                                  >
+                                    <span className="material-symbols-outlined text-xs">local_shipping</span>
+                                    <span>Start Delivery</span>
+                                  </button>
+                                )}
+                                {order.status === "SHIPPED" && (
+                                  <button
+                                    onClick={() => handleEnterOtp(order)}
+                                    className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-bold shadow hover:bg-amber-600 active:scale-95 transition-all flex items-center gap-1 ml-auto"
+                                  >
+                                    <span className="material-symbols-outlined text-xs">lock_open</span>
+                                    <span>Verify OTP</span>
+                                  </button>
+                                )}
+                                {order.status === "COMPLETED" && (
+                                  <span className="text-xs font-bold text-on-surface-variant flex items-center justify-end gap-1 select-none">
+                                    <span className="material-symbols-outlined text-xs text-emerald-600">check_circle</span>
+                                    <span>Delivered</span>
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Card List View — shown on Mobile/Tablet */}
+                  <div className="block md:hidden divide-y divide-outline-variant bg-surface">
+                    {recentOrders.map((order: DashboardOrder) => {
+                      const dateFormatted = new Date(order.createdAt).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+
+                      return (
+                        <div key={order.id} className="p-5 space-y-4 hover:bg-surface-container-low transition-colors">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <span className="text-[10px] uppercase font-bold text-outline tracking-wider block">
+                                Prescription No
+                              </span>
+                              <span className="font-mono font-bold text-primary text-sm select-all">
+                                {order.prescriptionNumber || "No Prescription"}
+                              </span>
+                            </div>
+                            <div>
                               {order.status === "PENDING" && (
                                 <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-600">
                                   Pending
@@ -249,41 +324,78 @@ export default function OTPVerificationPage() {
                                   Completed
                                 </span>
                               )}
-                            </td>
-                            {/* Action Button */}
-                            <td className="px-6 py-4 text-right">
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div>
+                              <span className="text-[10px] font-bold text-outline uppercase tracking-wider block mb-0.5">
+                                Patient Name
+                              </span>
+                              <span className="font-semibold text-on-surface text-sm">
+                                {order.patient?.name || "Anonymous Patient"}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold text-outline uppercase tracking-wider block mb-0.5">
+                                Mobile Number
+                              </span>
+                              <span className="font-semibold text-on-surface text-sm">
+                                {order.patient?.mobile || "N/A"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] font-bold text-outline uppercase tracking-wider block mb-1">
+                              Ordered Medicines
+                            </span>
+                            <div className="space-y-1 bg-surface-container rounded-lg p-2.5 border border-outline-variant">
+                              {order.orderMedicines.map((m) => (
+                                <span key={m.medicineId} className="block text-xs text-on-surface">
+                                  • {m.medicine.name} <span className="font-bold text-[#003d9b]">x{m.quantity}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-center pt-2">
+                            <span className="text-[10px] text-on-surface-variant font-medium">
+                              {dateFormatted}
+                            </span>
+                            <div>
                               {order.status === "PENDING" && (
                                 <button
                                   onClick={() => handleStartDelivery(order)}
                                   disabled={startDeliveryMutation.isPending}
-                                  className="px-3 py-1.5 bg-[#003d9b] text-white rounded-lg text-xs font-bold shadow hover:opacity-90 active:scale-95 transition-all flex items-center gap-1 ml-auto"
+                                  className="px-3 py-1.5 bg-[#003d9b] text-white rounded-lg text-xs font-bold shadow hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5"
                                 >
-                                  <span className="material-symbols-outlined text-xs">local_shipping</span>
+                                  <span className="material-symbols-outlined text-[14px]">local_shipping</span>
                                   <span>Start Delivery</span>
                                 </button>
                               )}
                               {order.status === "SHIPPED" && (
                                 <button
                                   onClick={() => handleEnterOtp(order)}
-                                  className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-bold shadow hover:bg-amber-600 active:scale-95 transition-all flex items-center gap-1 ml-auto"
+                                  className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-bold shadow hover:bg-amber-600 active:scale-95 transition-all flex items-center gap-1.5"
                                 >
-                                  <span className="material-symbols-outlined text-xs">lock_open</span>
+                                  <span className="material-symbols-outlined text-[14px]">lock_open</span>
                                   <span>Verify OTP</span>
                                 </button>
                               )}
                               {order.status === "COMPLETED" && (
-                                <span className="text-xs font-bold text-on-surface-variant flex items-center justify-end gap-1 select-none">
+                                <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1 select-none py-1">
                                   <span className="material-symbols-outlined text-xs text-emerald-600">check_circle</span>
                                   <span>Delivered</span>
                                 </span>
                               )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
           </>
