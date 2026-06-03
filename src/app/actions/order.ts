@@ -26,7 +26,7 @@ export interface CreateOrderInput {
 
 export async function createOrder(input: CreateOrderInput) {
   try {
-    const result = await prisma.$transaction(async (tx: any) => {
+    const result = await prisma.$transaction(async (tx: Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">) => {
       // 1. Create or update patient
       const patient = await tx.patient.upsert({
         where: { prescriptionNumber: input.prescriptionNumber },
