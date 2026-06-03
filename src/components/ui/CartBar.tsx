@@ -103,8 +103,8 @@ export default function CartBar({ onCheckout }: CartBarProps) {
               onClick={onCheckout}
               className="px-5 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md flex items-center justify-center gap-2 shadow-md hover:bg-on-primary-fixed-variant active:scale-[0.97] transition-all"
             >
-              <span>Verify &amp; Checkout</span>
-              <span className="material-symbols-outlined text-sm">chevron_right</span>
+              <span>View Cart</span>
+              <span className="material-symbols-outlined text-sm">arrow_forward</span>
             </button>
           </div>
         </div>

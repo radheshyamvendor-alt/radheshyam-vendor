@@ -29,7 +29,7 @@ export default function Catalog() {
   const medicines = queryResult?.success ? (queryResult.data ?? []) : [];
 
   const handleCheckoutRedirect = () => {
-    router.push("/dashboard/checkout");
+    router.push("/dashboard/cart");
   };
 
   const handleAddToCart = (med: any) => {
