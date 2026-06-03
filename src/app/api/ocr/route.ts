@@ -3,9 +3,14 @@ import prisma from "@/lib/prisma";
 import { Jimp } from "jimp";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { createWorker } from "tesseract.js";
+import path from "path";
 
-// Disable PDF.js web worker in Node.js/server environment
-pdfjs.GlobalWorkerOptions.workerSrc = "";
+// Point PDF.js worker to the actual worker file on disk
+// This prevents the "Cannot find module pdf.worker.mjs" error in Next.js server context
+pdfjs.GlobalWorkerOptions.workerSrc = path.join(
+  process.cwd(),
+  "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
+);
 
 // Normalization function to remove punctuation, spaces, and convert to lowercase
 function normalizeString(str: string): string {
