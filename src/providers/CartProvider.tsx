@@ -20,6 +20,7 @@ interface CartContextType {
   clearCart: () => void;
   totalPrice: number;
   totalItems: number;
+  addMultipleToCart: (items: Array<Omit<CartItem, "category" | "image"> & { category?: string; image?: string | null }>) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -90,6 +91,33 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setCart([]);
   };
 
+  const addMultipleToCart = (items: Array<Omit<CartItem, "category" | "image"> & { category?: string; image?: string | null }>) => {
+    setCart((prevCart) => {
+      const newCart = [...prevCart];
+      items.forEach((item) => {
+        const existingIndex = newCart.findIndex((i) => i.id === item.id);
+        const cartItem: CartItem = {
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          category: item.category || "Tablets",
+          image: item.image || null,
+          stock: item.stock,
+          quantity: item.quantity,
+        };
+        
+        if (existingIndex > -1) {
+          const existingItem = newCart[existingIndex];
+          const newQty = Math.min(existingItem.quantity + cartItem.quantity, cartItem.stock);
+          newCart[existingIndex] = { ...existingItem, quantity: newQty };
+        } else {
+          newCart.push({ ...cartItem, quantity: Math.min(cartItem.quantity, cartItem.stock) });
+        }
+      });
+      return newCart;
+    });
+  };
+
   const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -103,6 +131,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         clearCart,
         totalPrice,
         totalItems,
+        addMultipleToCart,
       }}
     >
       {children}

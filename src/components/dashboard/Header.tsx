@@ -36,6 +36,9 @@ export default function Header({ title, icon, rightActions }: HeaderProps) {
   } else if (pathname.startsWith("/dashboard/notifications")) {
     defaultTitle = "Notifications";
     defaultIcon = "notifications";
+  } else if (pathname.startsWith("/dashboard/ocr")) {
+    defaultTitle = "Scan Prescription";
+    defaultIcon = "document_scanner";
   } else if (pathname.startsWith("/profile")) {
     defaultTitle = "Profile";
     defaultIcon = "person";
@@ -48,6 +51,7 @@ export default function Header({ title, icon, rightActions }: HeaderProps) {
     { name: "Medicines", href: "/dashboard/catalog" },
     { name: "Inventory", href: "/dashboard" },
     { name: "Orders", href: "/dashboard/otp" },
+    { name: "Scan Prescription", href: "/dashboard/ocr" },
     { name: "Profile", href: "/profile" },
     { name: "Notifications", href: "/dashboard/notifications" },
   ];

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useAuth from "@/hooks/useAuth";
@@ -10,7 +11,71 @@ import BottomNav from "@/components/dashboard/BottomNav";
 export default function CartPage() {
   const { logout } = useAuth();
   const router = useRouter();
-  const { cart, totalPrice, totalItems, updateQuantity, removeFromCart } = useCart();
+  const { cart, totalPrice, totalItems, updateQuantity, removeFromCart, addMultipleToCart } = useCart();
+
+  const [isOcrProcessing, setIsOcrProcessing] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      await processFileOcr(files[0]);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      await processFileOcr(files[0]);
+    }
+  };
+
+  const processFileOcr = async (selectedFile: File) => {
+    const validTypes = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
+    if (!validTypes.includes(selectedFile.type)) {
+      setOcrError("Invalid file type. Please upload a PDF, PNG, JPG, or JPEG file.");
+      return;
+    }
+
+    setIsOcrProcessing(true);
+    setOcrError(null);
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+      const response = await fetch("/api/ocr", {
+        method: "POST",
+        body: formData,
+      });
+
+      const resData = await response.json();
+      if (resData.success) {
+        const ocrData = resData.data;
+        addMultipleToCart(ocrData.medicines);
+      } else {
+        setOcrError(resData.error || "OCR extraction failed. Please try again.");
+      }
+    } catch (err) {
+      console.error(err);
+      const errMsg = err instanceof Error ? err.message : "Failed to communicate with OCR service.";
+      setOcrError(errMsg);
+    } finally {
+      setIsOcrProcessing(false);
+    }
+  };
 
   // Financial calculations
   const subtotal = totalPrice;
@@ -27,30 +92,84 @@ export default function CartPage() {
       <Header />
 
       <main className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop py-xl">
-        {/* Page Title */}
-        <div className="mb-xl">
-          <h1 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Your Medical Cart</h1>
-          <p className="font-body-md text-body-md text-on-surface-variant mt-base">Review your selected items and proceed to prescription verification.</p>
-        </div>
-
         {totalItems === 0 ? (
           /* Empty State */
-          <div className="max-w-xl mx-auto text-center py-16 px-4 bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-sm glass-card flex flex-col items-center justify-center space-y-6">
-            <div className="w-16 h-16 bg-primary-container/20 text-primary rounded-full flex items-center justify-center shadow-inner">
-              <span className="material-symbols-outlined text-[36px]">shopping_cart</span>
+          <div className="max-w-xl mx-auto flex flex-col space-y-6">
+            <div className="text-center py-12 px-4 bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-sm glass-card flex flex-col items-center justify-center space-y-6">
+              <div className="w-16 h-16 bg-primary-container/20 text-primary rounded-full flex items-center justify-center shadow-inner">
+                <span className="material-symbols-outlined text-[36px]">shopping_cart</span>
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-on-surface">Your cart is currently empty</h2>
+                <p className="text-sm text-on-surface-variant max-w-sm mx-auto">
+                  Add medicines or medical equipment from the catalog to populate your cart and checkout.
+                </p>
+              </div>
+              <Link 
+                href="/dashboard/catalog" 
+                className="px-6 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md hover:bg-on-primary-fixed-variant active:scale-95 transition-all shadow-md inline-block font-bold"
+              >
+                Browse Medicine Catalog
+              </Link>
             </div>
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-on-surface">Your cart is currently empty</h2>
-              <p className="text-sm text-on-surface-variant max-w-sm mx-auto">
-                Add medicines or medical equipment from the catalog to populate your cart and checkout.
-              </p>
+            
+            <div className="flex items-center gap-4 my-2">
+              <div className="h-[1px] bg-outline-variant flex-grow"></div>
+              <span className="text-xs font-bold text-outline uppercase tracking-wider select-none">Or scan prescription</span>
+              <div className="h-[1px] bg-outline-variant flex-grow"></div>
             </div>
-            <Link 
-              href="/dashboard/catalog" 
-              className="px-6 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md hover:bg-on-primary-fixed-variant active:scale-95 transition-all shadow-md inline-block"
-            >
-              Browse Medicine Catalog
-            </Link>
+
+            {/* OCR Dropzone */}
+            <div className="bg-surface-container-lowest border border-outline-variant shadow-sm rounded-2xl p-6 glass-card space-y-4">
+              {ocrError && (
+                <div className="p-4 bg-error-container/20 border border-error/20 text-error rounded-xl flex items-center gap-3 text-sm">
+                  <span className="material-symbols-outlined text-[18px]">error</span>
+                  <span>{ocrError}</span>
+                </div>
+              )}
+              {isOcrProcessing ? (
+                <div className="h-44 border border-outline-variant rounded-xl bg-surface-container-low flex flex-col items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-85 shadow-[0_0_10px_#003d9b] animate-[bounce_2.5s_infinite_linear]"></div>
+                  <svg className="animate-spin h-8 w-8 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <h4 className="mt-3 font-bold text-on-surface text-sm">Processing Prescription...</h4>
+                  <p className="text-[10px] text-on-surface-variant mt-0.5 animate-pulse">Extracting patient &amp; medicine details...</p>
+                </div>
+              ) : (
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`h-44 border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-4 cursor-pointer transition-all ${
+                    isDragOver
+                      ? "border-primary bg-primary/5"
+                      : "border-outline-variant hover:border-primary/50"
+                  }`}
+                  onClick={() => document.getElementById("file-input-empty")?.click()}
+                >
+                  <input
+                    id="file-input-empty"
+                    type="file"
+                    accept="application/pdf,image/png,image/jpeg,image/jpg"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <span className="material-symbols-outlined text-[36px] text-primary mb-2 animate-pulse">
+                    document_scanner
+                  </span>
+                  <span className="font-bold text-on-surface text-sm">Scan Prescription to Fill Cart</span>
+                  <span className="text-[10px] text-on-surface-variant mt-0.5">Supports PDF, PNG, JPG, JPEG</span>
+                  <button
+                    type="button"
+                    className="mt-3 px-3 py-1.5 bg-surface border border-outline-variant rounded-lg font-label-sm text-label-sm text-on-surface hover:bg-surface-container transition-all"
+                  >
+                    Select File
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           /* Cart Content Layout */
@@ -130,17 +249,63 @@ export default function CartPage() {
                 );
               })}
 
-              {/* Add more items card trigger */}
-              <Link
-                href="/dashboard/catalog"
-                className="border-2 border-dashed border-outline-variant rounded-xl p-xl flex flex-col items-center justify-center text-center group hover:border-primary hover:bg-primary/5 transition-all duration-300 block"
-              >
-                <div className="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary-container transition-colors mb-md">
-                  <span className="material-symbols-outlined text-[24px]">add_circle</span>
+              {/* Actions Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                {/* Add more items card trigger */}
+                <Link
+                  href="/dashboard/catalog"
+                  className="border border-outline-variant rounded-xl p-lg flex flex-col items-center justify-center text-center group hover:border-primary hover:bg-primary/5 transition-all duration-300 bg-surface-container-lowest"
+                >
+                  <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary-container transition-colors mb-sm">
+                    <span className="material-symbols-outlined text-[20px]">add_circle</span>
+                  </div>
+                  <h4 className="font-headline-sm text-body-lg font-bold text-on-surface">Add more medicines</h4>
+                  <p className="font-body-sm text-xs text-on-surface-variant mt-0.5">Need to add another prescription or OTC item?</p>
+                </Link>
+
+                {/* Upload Prescription OCR Card */}
+                <div className="border border-outline-variant rounded-xl p-lg flex flex-col justify-center bg-surface-container-lowest hover:border-primary/50 transition-all duration-300">
+                  {ocrError && (
+                    <div className="mb-2 p-2 bg-error-container/20 border border-error/20 text-error rounded-lg flex items-center gap-2 text-xs">
+                      <span className="material-symbols-outlined text-[16px]">error</span>
+                      <span>{ocrError}</span>
+                    </div>
+                  )}
+                  {isOcrProcessing ? (
+                    <div className="h-28 border border-outline-variant rounded-lg bg-surface-container-low flex flex-col items-center justify-center relative overflow-hidden">
+                      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-85 shadow-[0_0_10px_#003d9b] animate-[bounce_2.5s_infinite_linear]"></div>
+                      <svg className="animate-spin h-6 w-6 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span className="mt-2 text-xs font-semibold text-on-surface">Scanning Prescription...</span>
+                    </div>
+                  ) : (
+                    <div
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      className={`h-28 border-2 border-dashed rounded-lg flex flex-col items-center justify-center p-3 cursor-pointer transition-all ${
+                        isDragOver ? "border-primary bg-primary/5" : "border-outline-variant hover:border-primary"
+                      }`}
+                      onClick={() => document.getElementById("file-input-cart")?.click()}
+                    >
+                      <input
+                        id="file-input-cart"
+                        type="file"
+                        accept="application/pdf,image/png,image/jpeg,image/jpg"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                      <span className="material-symbols-outlined text-[24px] text-primary mb-1 animate-pulse">
+                        document_scanner
+                      </span>
+                      <span className="font-bold text-on-surface text-xs text-center">Scan prescription to add medicines</span>
+                      <span className="text-[9px] text-on-surface-variant mt-0.5">PDF, PNG, JPG, JPEG</span>
+                    </div>
+                  )}
                 </div>
-                <h4 className="font-headline-md text-headline-md text-on-surface">Add more medicines</h4>
-                <p className="font-body-sm text-body-sm text-on-surface-variant">Need to add another prescription or OTC item?</p>
-              </Link>
+              </div>
             </div>
 
             {/* Summary Section */}
