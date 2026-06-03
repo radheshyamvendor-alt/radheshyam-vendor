@@ -85,6 +85,9 @@ module.exports = {
         "3xl": "64px",
         "margin-desktop": "40px"
       },
+      maxWidth: {
+        "max-width": "1440px",
+      },
       fontFamily: {
         "body-lg": ["Inter", "sans-serif"],
         "headline-md": ["Inter", "sans-serif"],
