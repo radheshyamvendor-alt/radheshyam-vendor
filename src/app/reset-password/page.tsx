@@ -13,7 +13,13 @@ const resetPasswordSchema = zod
   .object({
     email: zod.string().min(1, "Email is required").email("Please enter a valid email address"),
     token: zod.string().min(1, "Reset token is required"),
-    newPassword: zod.string().min(6, "New password must be at least 6 characters"),
+    newPassword: zod
+      .string()
+      .min(6, "New password must be at least 6 characters")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[0-9]/, "Password must contain at least one number")
+      .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
     confirmPassword: zod.string().min(6, "Confirm password must be at least 6 characters"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
