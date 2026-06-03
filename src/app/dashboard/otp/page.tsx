@@ -7,6 +7,7 @@ import useAuth from "@/hooks/useAuth";
 import { getDashboardStats, startDelivery, getOrders, deleteOrder, updateOrder } from "@/app/actions/order";
 import OTPModal from "@/components/dashboard/OTPModal";
 import EditOrderDialog from "@/components/dashboard/EditOrderDialog";
+import ConfirmationDialog from "@/components/dashboard/ConfirmationDialog";
 import Header from "@/components/dashboard/Header";
 import BottomNav from "@/components/dashboard/BottomNav";
 
@@ -42,6 +43,10 @@ export default function OTPVerificationPage() {
   // Edit Order modal states
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<DashboardOrder | null>(null);
+
+  // Delete confirmation modal states
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [orderIdToDelete, setOrderIdToDelete] = useState("");
 
   // Pagination states
   const [page, setPage] = useState(1);
@@ -123,9 +128,8 @@ export default function OTPVerificationPage() {
   };
 
   const handleDeleteOrder = (orderId: string) => {
-    if (confirm("Are you sure you want to cancel and delete this order? All reserved medicine stocks will be returned to inventory.")) {
-      deleteOrderMutation.mutate(orderId);
-    }
+    setOrderIdToDelete(orderId);
+    setIsConfirmOpen(true);
   };
 
   const handleUpdateOrderSubmit = async (orderId: string, input: any) => {
@@ -532,6 +536,22 @@ export default function OTPVerificationPage() {
         onClose={() => setIsEditOpen(false)}
         onSubmit={handleUpdateOrderSubmit}
         order={editingOrder}
+      />
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={() => {
+          if (orderIdToDelete) {
+            deleteOrderMutation.mutate(orderIdToDelete);
+          }
+        }}
+        title="Cancel & Delete Order"
+        message="Are you sure you want to cancel and delete this order? All reserved medicine stocks will be returned to inventory."
+        confirmText="Cancel Order"
+        cancelText="Keep Order"
+        type="danger"
       />
 
       {/* Shared Responsive Bottom Navigation */}
