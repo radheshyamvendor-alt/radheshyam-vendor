@@ -389,10 +389,10 @@ export default function Dashboard() {
           </div>
 
           {/* Pagination */}
-          {medicines.length > pageSize && (
+          {totalCount > pageSize && (
             <div className="flex items-center justify-between pt-2">
               <span className="text-xs text-on-surface-variant">
-                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, medicines.length)} of {medicines.length}
+                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, totalCount)} of {totalCount}
               </span>
               <div className="flex gap-2">
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
