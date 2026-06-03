@@ -49,9 +49,9 @@ export default function Header({ title, icon, rightActions }: HeaderProps) {
 
   const links = [
     { name: "Medicines", href: "/dashboard/catalog" },
-    { name: "Inventory", href: "/dashboard" },
-    { name: "Orders", href: "/dashboard/otp" },
     { name: "Scan Prescription", href: "/dashboard/ocr" },
+    { name: "Orders", href: "/dashboard/otp" },
+    { name: "Inventry", href: "/dashboard" },
     { name: "Profile", href: "/profile" },
     { name: "Notifications", href: "/dashboard/notifications" },
   ];

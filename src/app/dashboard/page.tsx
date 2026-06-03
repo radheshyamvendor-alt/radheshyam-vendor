@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import useAuth from "@/hooks/useAuth";
 import { getMedicines, addMedicine, updateMedicine, deleteMedicine, MedicineInput, getInventoryStats } from "@/app/actions/medicine";
 import InventoryDialog from "@/components/dashboard/InventoryDialog";
+import ConfirmationDialog from "@/components/dashboard/ConfirmationDialog";
 import Header from "@/components/dashboard/Header";
 import BottomNav from "@/components/dashboard/BottomNav";
 
@@ -32,6 +33,10 @@ export default function Dashboard() {
   // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMedicine, setEditingMedicine] = useState<MedicineItem | null>(null);
+
+  // Delete confirmation modal states
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [medicineIdToDelete, setMedicineIdToDelete] = useState("");
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -142,10 +147,9 @@ export default function Dashboard() {
   const handleOpenAddDialog = () => { setEditingMedicine(null); setIsDialogOpen(true); };
   const handleOpenEditDialog = (med: MedicineItem) => { setEditingMedicine(med); setIsDialogOpen(true); };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this medicine?")) {
-      try { await deleteMutation.mutateAsync(id); } catch (err) { console.error(err); }
-    }
+  const handleDelete = (id: string) => {
+    setMedicineIdToDelete(id);
+    setIsConfirmOpen(true);
   };
 
   const handleFormSubmit = async (input: MedicineInput) => {
@@ -720,6 +724,26 @@ export default function Dashboard() {
         onClose={() => setIsDialogOpen(false)}
         onSubmit={handleFormSubmit}
         medicine={editingMedicine}
+      />
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={async () => {
+          if (medicineIdToDelete) {
+            try {
+              await deleteMutation.mutateAsync(medicineIdToDelete);
+            } catch (err) {
+              console.error(err);
+            }
+          }
+        }}
+        title="Delete Medicine"
+        message="Are you sure you want to delete this medicine? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
       />
     </div>
   );

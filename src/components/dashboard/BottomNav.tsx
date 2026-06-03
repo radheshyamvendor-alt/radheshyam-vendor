@@ -8,9 +8,9 @@ export default function BottomNav() {
 
   const navItems = [
     { name: "Medicines", href: "/dashboard/catalog", icon: "verified_user" },
-    { name: "Inventory", href: "/dashboard", icon: "inventory_2" },
-    { name: "Orders", href: "/dashboard/otp", icon: "local_shipping" },
     { name: "OCR", href: "/dashboard/ocr", icon: "document_scanner" },
+    { name: "Orders", href: "/dashboard/otp", icon: "local_shipping" },
+    { name: "Inventry", href: "/dashboard", icon: "inventory_2" },
     { name: "Profile", href: "/profile", icon: "person" },
   ];
 

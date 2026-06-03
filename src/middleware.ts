@@ -28,7 +28,7 @@ export function middleware(request: NextRequest) {
 
   // If already authenticated and trying to access login/register, redirect to dashboard
   if (isAuthRoute && refreshToken) {
-    const dashboardUrl = new URL(AUTH_CONSTANTS.ROUTES.DASHBOARD, request.url);
+    const dashboardUrl = new URL("/dashboard/catalog", request.url);
     return NextResponse.redirect(dashboardUrl);
   }
 

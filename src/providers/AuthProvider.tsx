@@ -201,7 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Schedule automated background silent refresh
         scheduleNextRefresh(expiration);
 
-        router.push(AUTH_CONSTANTS.ROUTES.DASHBOARD);
+        router.push("/dashboard/catalog");
       } else {
         throw new Error(response.message || "Login failed");
       }
