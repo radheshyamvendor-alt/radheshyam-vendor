@@ -8,6 +8,7 @@ import {
   ForgotPasswordResponse,
   ResetPasswordRequest,
   ResetPasswordResponse,
+  ProfileResponse,
 } from "./auth.types";
 
 export const authService = {
@@ -28,6 +29,16 @@ export const authService = {
 
   async resetPassword(data: ResetPasswordRequest): Promise<ResetPasswordResponse> {
     const response = await api.post<ResetPasswordResponse>("reset-password", data);
+    return response.data;
+  },
+
+  async getProfile(): Promise<ProfileResponse> {
+    const response = await api.get<ProfileResponse>("user/profile");
+    return response.data;
+  },
+
+  async getProfileByEmail(email: string): Promise<ProfileResponse> {
+    const response = await api.get<ProfileResponse>(`user/profile/${email}`);
     return response.data;
   },
 };

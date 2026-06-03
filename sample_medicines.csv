@@ -1,0 +1,31 @@
+id,name,category,description,price,stock,image,createdAt,updatedAt
+550e8400-e29b-41d4-a716-446655440001,Paracetamol 500mg,Tablets,Analgesic and antipyretic tablet for fever and mild to moderate pain relief,12.50,500,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440002,Amoxicillin 250mg,Capsules,Broad-spectrum antibiotic capsule for bacterial infections,45.00,300,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440003,Ibuprofen 400mg,Tablets,Non-steroidal anti-inflammatory drug for pain and inflammation,18.00,400,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440004,Cetirizine 10mg,Tablets,Antihistamine tablet for allergy symptoms and hay fever,8.50,600,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440005,Metformin 500mg,Tablets,Oral antidiabetic drug for type 2 diabetes management,22.00,350,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440006,Omeprazole 20mg,Capsules,Proton pump inhibitor for acid reflux and gastric ulcers,35.00,250,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440007,Azithromycin 500mg,Tablets,Macrolide antibiotic for respiratory and skin infections,85.00,200,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440008,Atorvastatin 10mg,Tablets,Statin drug for lowering cholesterol and preventing cardiovascular disease,55.00,280,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440009,Amlodipine 5mg,Tablets,Calcium channel blocker for hypertension and angina,30.00,320,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440010,Cough Syrup 100ml,Syrups,Antitussive and expectorant syrup for dry and wet cough relief,65.00,150,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440011,Antacid Syrup 200ml,Syrups,Magnesium hydroxide based antacid for acidity and heartburn,48.00,180,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440012,Iron & Folic Acid Syrup 200ml,Syrups,Iron and folic acid supplement syrup for anaemia,55.00,120,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440013,Vitamin C 500mg,Tablets,Ascorbic acid supplement for immune support and antioxidant benefits,25.00,500,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440014,Pantoprazole 40mg,Tablets,Proton pump inhibitor for gastroesophageal reflux disease,42.00,260,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440015,Doxycycline 100mg,Capsules,Tetracycline antibiotic for bacterial infections and acne,60.00,180,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440016,Ciprofloxacin 500mg,Tablets,Fluoroquinolone antibiotic for urinary and respiratory tract infections,72.00,200,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440017,Eye Drops Lubricant 10ml,Drops,Carboxymethylcellulose eye drops for dry eye syndrome,95.00,100,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440018,Nasal Decongestant Drops 10ml,Drops,Xylometazoline nasal drops for nasal congestion and sinusitis,40.00,130,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440019,Ear Drops Antibacterial 10ml,Drops,Ciprofloxacin ear drops for outer ear infections and otitis,75.00,90,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440020,Diclofenac Gel 30g,Ointments,Topical NSAID gel for joint pain and muscle inflammation,110.00,140,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440021,Clotrimazole Cream 20g,Ointments,Antifungal cream for ringworm tinea and candidal skin infections,85.00,160,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440022,Betamethasone Cream 15g,Ointments,Corticosteroid cream for eczema psoriasis and inflammatory skin conditions,95.00,110,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440023,Insulin Syringe 1ml (Pack of 10),Injections,Sterile disposable insulin syringes with 29G needle for diabetes management,120.00,200,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440024,Normal Saline 500ml IV,Injections,Isotonic sodium chloride solution for intravenous fluid replacement,85.00,80,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440025,Digital Thermometer,Medical Devices,Fast reading digital thermometer with fever alarm and memory function,250.00,60,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440026,Blood Pressure Monitor,Medical Devices,Automatic upper arm blood pressure monitor with irregular heartbeat detection,1850.00,25,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440027,Pulse Oximeter,Medical Devices,Fingertip pulse oximeter for SpO2 and heart rate monitoring,650.00,40,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440028,Glucometer Kit,Medical Devices,Blood glucose monitoring kit with 10 test strips and lancets for diabetes,899.00,35,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440029,Multivitamin Tablets (Pack of 30),Tablets,Comprehensive daily multivitamin with minerals for overall health and wellbeing,180.00,220,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+550e8400-e29b-41d4-a716-446655440030,ORS Powder Orange Flavour,Other,Oral rehydration salts powder for dehydration due to diarrhoea and vomiting,25.00,300,,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useAuth from "@/hooks/useAuth";
 import { useCart } from "@/providers/CartProvider";
+import Header from "@/components/dashboard/Header";
+import BottomNav from "@/components/dashboard/BottomNav";
 
 export default function CartPage() {
   const { logout } = useAuth();
@@ -21,45 +23,8 @@ export default function CartPage() {
 
   return (
     <div className="min-h-screen bg-background trust-gradient pb-20 md:pb-12 text-on-background">
-      {/* Desktop TopNavBar */}
-      <header className="hidden md:flex justify-between items-center w-full px-margin-desktop max-w-max-width mx-auto h-20 bg-surface-container-lowest sticky top-0 z-50 border-b border-outline-variant shadow-sm">
-        <Link href="/dashboard" className="font-headline-md text-headline-md font-bold text-primary hover:opacity-90 transition-opacity">
-          Radheshyam Medical
-        </Link>
-        <nav className="flex items-center gap-xl">
-          <Link href="/dashboard" className="text-on-secondary-fixed-variant font-medium hover:text-primary transition-colors duration-200">
-            Dashboard
-          </Link>
-          <Link href="/dashboard/catalog" className="text-on-secondary-fixed-variant font-medium hover:text-primary transition-colors duration-200">
-            Catalog
-          </Link>
-          <Link href="/dashboard/inventory" className="text-on-secondary-fixed-variant font-medium hover:text-primary transition-colors duration-200">
-            Inventory
-          </Link>
-        </nav>
-        <div className="flex items-center gap-md">
-          <button 
-            onClick={logout}
-            className="text-primary font-bold hover:opacity-80 transition-opacity"
-          >
-            Logout
-          </button>
-          <div className="w-10 h-10 rounded-full bg-surface-container overflow-hidden border border-outline-variant">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img 
-              alt="User Avatar" 
-              className="w-full h-full object-cover" 
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-NP8DFr-klP9qPtwq0dCx2Jz_Ij75ghI0V_O5iwOZtW3CN2YCzycpZDAeTrFoqFbZ1yfIxLBPUAMMVwt_hLgH679RCJwvanNvuZ5yQecvuNNg-MEUFKPSDh7VUpe_FXfepH_rIWm4xbl-hj5zeD91HpeLXvKq-NpeSCtcTYn7ADsVMF9kMK3wEy-3tFjyl7l_Jlt06kmr_xOjoi_f_F3-yzDjJM-JhjL3Q9BhxyAR_QwVsM4g1jmzmUrfq7uMJg_nZUuc8zzihV0"
-            />
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile Header */}
-      <div className="md:hidden flex justify-between items-center px-margin-mobile h-16 bg-surface-container-lowest border-b border-outline-variant shadow-sm">
-        <span className="font-headline-lg-mobile text-headline-lg-mobile font-bold text-primary">Radheshyam Medical</span>
-        <span className="material-symbols-outlined text-primary text-[24px]">notifications</span>
-      </div>
+      {/* Shared Responsive Header */}
+      <Header />
 
       <main className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop py-xl">
         {/* Page Title */}
@@ -236,21 +201,8 @@ export default function CartPage() {
         )}
       </main>
 
-      {/* Mobile BottomNavBar */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-margin-mobile pb-safe h-16 bg-surface-container-lowest border-t border-outline-variant z-40">
-        <Link href="/dashboard" className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1">
-          <span className="material-symbols-outlined">home</span>
-          <span className="text-[10px] font-bold">Home</span>
-        </Link>
-        <Link href="/dashboard/cart" className="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl px-4 py-1 scale-95 transition-transform">
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>shopping_cart</span>
-          <span className="text-[10px] font-bold">Cart</span>
-        </Link>
-        <Link href="/dashboard/catalog" className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1">
-          <span className="material-symbols-outlined">verified_user</span>
-          <span className="text-[10px] font-bold">Catalog</span>
-        </Link>
-      </nav>
+      {/* Shared Responsive Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }

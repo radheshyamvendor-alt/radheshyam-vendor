@@ -14,7 +14,7 @@ export default function CartBar({ onCheckout }: CartBarProps) {
   if (totalItems === 0) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-lg z-40 transition-all duration-300">
+    <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-lg z-40 transition-all duration-300">
       <div className="bg-surface border border-outline-variant shadow-xl rounded-2xl p-4 glass-card flex flex-col gap-3">
         {/* Expanded cart detail panel */}
         {isExpanded && (

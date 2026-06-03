@@ -69,3 +69,16 @@ export interface ResetPasswordResponse {
   success: boolean;
   message: string;
 }
+
+export interface ProfileData {
+  email: string;
+  name: string;
+  mobile: string;
+  location: string;
+}
+
+export interface ProfileResponse {
+  success: boolean;
+  message?: string;
+  data?: ProfileData;
+}

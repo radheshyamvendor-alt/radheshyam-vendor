@@ -8,7 +8,9 @@ import useAuth from "@/hooks/useAuth";
 import { useCart } from "@/providers/CartProvider";
 import { getMedicines } from "@/app/actions/medicine";
 import CartBar from "@/components/ui/CartBar";
-import { MedicineItem } from "../inventory/page";
+import { MedicineItem } from "../page";
+import Header from "@/components/dashboard/Header";
+import BottomNav from "@/components/dashboard/BottomNav";
 
 export default function Catalog() {
   const { logout } = useAuth();
@@ -62,54 +64,13 @@ export default function Catalog() {
 
   return (
     <div className="min-h-screen bg-background trust-gradient pb-24 md:pb-12 text-on-surface">
-      {/* Desktop TopNavBar */}
-      <header className="hidden md:flex justify-between items-center w-full px-margin-desktop max-w-max-width mx-auto h-20 bg-surface-container-lowest sticky top-0 z-50 shadow-sm border-b border-outline-variant">
-        <Link href="/dashboard" className="font-headline-md text-headline-md font-bold text-primary hover:opacity-90 transition-opacity">
-          Radheshyam Medical
-        </Link>
-        <nav className="flex gap-lg items-center">
-          <Link href="/dashboard" className="text-on-secondary-fixed-variant font-medium hover:text-primary transition-colors duration-200 font-label-md text-label-md">
-            Dashboard
-          </Link>
-          <Link href="/dashboard/catalog" className="text-primary border-b-2 border-primary pb-1 font-bold font-label-md text-label-md">
-            Catalog
-          </Link>
-          <Link href="/dashboard/inventory" className="text-on-secondary-fixed-variant font-medium hover:text-primary transition-colors duration-200 font-label-md text-label-md">
-            Inventory
-          </Link>
-        </nav>
-        <div className="flex items-center gap-md">
-          <button 
-            onClick={logout}
-            className="text-on-secondary-fixed-variant font-medium font-label-md text-label-md hover:text-primary"
-          >
-            Logout
-          </button>
-          <div className="w-10 h-10 rounded-full bg-surface-container overflow-hidden border border-outline-variant">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img 
-              alt="User Avatar" 
-              className="w-full h-full object-cover" 
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-NP8DFr-klP9qPtwq0dCx2Jz_Ij75ghI0V_O5iwOZtW3CN2YCzycpZDAeTrFoqFbZ1yfIxLBPUAMMVwt_hLgH679RCJwvanNvuZ5yQecvuNNg-MEUFKPSDh7VUpe_FXfepH_rIWm4xbl-hj5zeD91HpeLXvKq-NpeSCtcTYn7ADsVMF9kMK3wEy-3tFjyl7l_Jlt06kmr_xOjoi_f_F3-yzDjJM-JhjL3Q9BhxyAR_QwVsM4g1jmzmUrfq7uMJg_nZUuc8zzihV0"
-            />
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile Top Bar */}
-      <div className="md:hidden flex justify-between items-center px-margin-mobile h-16 bg-surface-container-lowest border-b border-outline-variant">
-        <span className="font-headline-lg-mobile text-headline-lg-mobile font-bold text-primary">Radheshyam Medical</span>
-        <span className="material-symbols-outlined text-primary text-[24px]">notifications</span>
-      </div>
+      {/* Shared Responsive Header */}
+      <Header />
 
       <main className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop py-xl">
-        {/* Hero / Search Section */}
-        <section className="mb-3xl">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-lg mb-xl">
-            <div>
-              <h1 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-xs">Medicine Catalog</h1>
-              <p className="font-body-md text-body-md text-on-surface-variant">Find the right medication quickly and reliably.</p>
-            </div>
+        {/* Search Section */}
+        <section className="mb-md">
+          <div className="flex justify-end">
             <div className="relative w-full md:w-96 group">
               <input 
                 value={search}
@@ -289,21 +250,8 @@ export default function Catalog() {
       {/* Floating Sticky Cart Bar */}
       <CartBar onCheckout={handleCheckoutRedirect} />
 
-      {/* Mobile BottomNavBar */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-margin-mobile pb-safe h-16 bg-surface-container-lowest dark:bg-inverse-surface border-t border-outline-variant z-40">
-        <Link href="/dashboard" className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1">
-          <span className="material-symbols-outlined">home</span>
-          <span className="text-[10px] font-bold">Home</span>
-        </Link>
-        <Link href="/dashboard/catalog" className="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl px-4 py-1 scale-95 transition-transform duration-150">
-          <span className="material-symbols-outlined">verified_user</span>
-          <span className="text-[10px] font-bold">Catalog</span>
-        </Link>
-        <Link href="/dashboard/inventory" className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1">
-          <span className="material-symbols-outlined">inventory</span>
-          <span className="text-[10px] font-bold">Inventory</span>
-        </Link>
-      </nav>
+      {/* Shared Responsive Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }

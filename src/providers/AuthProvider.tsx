@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, useCallback, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { tokenStorage } from "@/lib/tokenStorage";
@@ -30,6 +30,7 @@ interface AuthContextType {
   logout: () => void;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (data: ResetPasswordRequest) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -124,16 +125,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLocalAccessToken(accessToken);
           tokenStorage.setRefreshToken(refreshToken, expiration);
           
-          if (cachedUser) {
-            setUser(cachedUser);
-          } else {
-            // Fallback user if cache was cleared
-            setUser({
-              name: "Authenticated Chemist",
-              email: "chemist@gmail.com",
-              mobile: "0000000000",
-              location: "Delhi",
-            });
+          try {
+            const profileResponse = await authService.getProfile() as any;
+            let profile: User | null = null;
+            if (profileResponse) {
+              if (profileResponse.email || profileResponse.name) {
+                profile = {
+                  name: profileResponse.name || "",
+                  email: profileResponse.email || "",
+                  mobile: profileResponse.mobile || "",
+                  location: profileResponse.location || "",
+                };
+              } else if (profileResponse.success && profileResponse.data) {
+                profile = profileResponse.data;
+              }
+            }
+
+            if (profile) {
+              tokenStorage.setUserData(profile);
+              setUser(profile);
+            } else {
+              throw new Error("Failed to parse profile response");
+            }
+          } catch (profileErr) {
+            console.warn("Failed to fetch fresh profile, using cached/fallback:", profileErr);
+            if (cachedUser) {
+              setUser(cachedUser);
+            } else {
+              // Fallback user if cache was cleared
+              setUser({
+                name: "Authenticated Chemist",
+                email: "chemist@gmail.com",
+                mobile: "0000000000",
+                location: "Delhi",
+              });
+            }
           }
 
           // Schedule automated background silent refresh
@@ -229,6 +255,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = !!user && !!getLocalAccessToken();
 
+  const refreshProfile = useCallback(async () => {
+    const storedRefreshToken = tokenStorage.getRefreshToken();
+    if (!storedRefreshToken) return;
+
+    try {
+      const profileResponse = await authService.getProfile() as any;
+      let profile: User | null = null;
+      if (profileResponse) {
+        if (profileResponse.email || profileResponse.name) {
+          profile = {
+            name: profileResponse.name || "",
+            email: profileResponse.email || "",
+            mobile: profileResponse.mobile || "",
+            location: profileResponse.location || "",
+          };
+        } else if (profileResponse.success && profileResponse.data) {
+          profile = profileResponse.data;
+        }
+      }
+
+      if (profile) {
+        tokenStorage.setUserData(profile);
+        setUser(profile);
+      }
+    } catch (err) {
+      console.error("Failed to refresh profile:", err);
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -240,6 +295,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         forgotPassword,
         resetPassword,
+        refreshProfile,
       }}
     >
       {children}
