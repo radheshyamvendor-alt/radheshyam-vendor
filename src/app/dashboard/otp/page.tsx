@@ -36,7 +36,6 @@ export default function OTPVerificationPage() {
   const [isOtpOpen, setIsOtpOpen] = useState(false);
   const [otpPrescriptionNo, setOtpPrescriptionNo] = useState("");
   const [otpOrderId, setOtpOrderId] = useState("");
-  const [otpMockCode, setOtpMockCode] = useState("");
 
   // Fetch Dashboard Stats & Recents
   const { data, isLoading, error } = useQuery({
@@ -54,7 +53,6 @@ export default function OTPVerificationPage() {
         // Open OTP Verification Dialog directly
         setOtpOrderId(orderId);
         setOtpPrescriptionNo(result.data.prescriptionNumber || "");
-        setOtpMockCode(result.mockOtp || "");
         setIsOtpOpen(true);
       }
     },
@@ -76,7 +74,6 @@ export default function OTPVerificationPage() {
   const handleEnterOtp = (order: DashboardOrder) => {
     setOtpOrderId(order.id);
     setOtpPrescriptionNo(order.prescriptionNumber || "");
-    setOtpMockCode(order.otp || "");
     setIsOtpOpen(true);
   };
 
@@ -298,7 +295,6 @@ export default function OTPVerificationPage() {
         isOpen={isOtpOpen}
         onClose={() => setIsOtpOpen(false)}
         prescriptionNumber={otpPrescriptionNo}
-        initialMockOtp={otpMockCode}
         orderId={otpOrderId}
       />
 

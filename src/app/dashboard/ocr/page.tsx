@@ -22,17 +22,22 @@ interface ExtractedPatient {
   age: number;
 }
 
+interface OcrResult {
+  prescriptionNumber: string;
+  patient: ExtractedPatient;
+  medicines: ExtractedMedicine[];
+}
+
 export default function OcrPage() {
   const { addMultipleToCart } = useCart();
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  
-  // Scanned results states
-  const [prescriptionNumber, setPrescriptionNumber] = useState<string | null>(null);
-  const [patientInfo, setPatientInfo] = useState<ExtractedPatient | null>(null);
-  const [scannedMedicines, setScannedMedicines] = useState<ExtractedMedicine[]>([]);
-  const [scanSuccess, setScanSuccess] = useState(false);
+
+  // Pending result awaiting user confirmation
+  const [pendingResult, setPendingResult] = useState<OcrResult | null>(null);
+  // Confirmed / added to cart flag
+  const [addedToCart, setAddedToCart] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -68,7 +73,8 @@ export default function OcrPage() {
 
     setIsOcrProcessing(true);
     setOcrError(null);
-    setScanSuccess(false);
+    setPendingResult(null);
+    setAddedToCart(false);
 
     const formData = new FormData();
     formData.append("file", selectedFile);
@@ -81,23 +87,8 @@ export default function OcrPage() {
 
       const resData = await response.json();
       if (resData.success) {
-        const ocrData = resData.data;
-        if (typeof window !== "undefined") {
-          localStorage.setItem(
-            "radheshyam_scanned_rx",
-            JSON.stringify({
-              prescriptionNumber: ocrData.prescriptionNumber,
-              patient: ocrData.patient,
-            })
-          );
-        }
-        setPrescriptionNumber(ocrData.prescriptionNumber);
-        setPatientInfo(ocrData.patient);
-        setScannedMedicines(ocrData.medicines);
-        
-        // Add to cart
-        addMultipleToCart(ocrData.medicines);
-        setScanSuccess(true);
+        // Show extracted details for review — do NOT add to cart yet
+        setPendingResult(resData.data);
       } else {
         setOcrError(resData.error || "OCR extraction failed. Please try again.");
       }
@@ -110,11 +101,28 @@ export default function OcrPage() {
     }
   };
 
+  const handleConfirmAndAdd = () => {
+    if (!pendingResult) return;
+
+    // Save prescription details to localStorage
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        "radheshyam_scanned_rx",
+        JSON.stringify({
+          prescriptionNumber: pendingResult.prescriptionNumber,
+          patient: pendingResult.patient,
+        })
+      );
+    }
+
+    // Only now add medicines to cart
+    addMultipleToCart(pendingResult.medicines);
+    setAddedToCart(true);
+  };
+
   const resetScanner = () => {
-    setPrescriptionNumber(null);
-    setPatientInfo(null);
-    setScannedMedicines([]);
-    setScanSuccess(false);
+    setPendingResult(null);
+    setAddedToCart(false);
     setOcrError(null);
   };
 
@@ -124,7 +132,7 @@ export default function OcrPage() {
 
       <main className="max-w-[800px] mx-auto px-margin-mobile md:px-margin-desktop py-xl">
         <div className="space-y-6">
-          
+
           {ocrError && (
             <div className="p-4 bg-error-container/20 border border-error/20 text-error rounded-xl flex items-center gap-3 text-sm">
               <span className="material-symbols-outlined text-[18px]">error</span>
@@ -132,12 +140,13 @@ export default function OcrPage() {
             </div>
           )}
 
-          {!scanSuccess ? (
+          {/* STEP 1: Upload area — shown when no result pending */}
+          {!pendingResult && !addedToCart && (
             <div className="bg-surface border border-outline-variant shadow-sm rounded-xl p-8 glass-card space-y-6">
               <div className="text-center space-y-2">
                 <h3 className="text-headline-sm font-bold text-on-surface">Prescription OCR Scanner</h3>
                 <p className="text-sm text-on-surface-variant max-w-sm mx-auto">
-                  Upload a prescription document (PDF or image). Our OCR engine will instantly parse it and add the medicines directly to your cart.
+                  Upload a prescription document (PDF or image). Our OCR engine will extract the details for you to review before adding to cart.
                 </p>
               </div>
 
@@ -186,45 +195,48 @@ export default function OcrPage() {
                 </div>
               )}
             </div>
-          ) : (
-            /* Results & Success State */
-            <div className="bg-surface border border-outline-variant shadow-sm rounded-xl p-6 glass-card space-y-6">
-              <div className="flex items-center gap-3 p-4 bg-primary-container/10 border border-primary/20 text-primary rounded-xl">
-                <span className="material-symbols-outlined text-[24px]">check_circle</span>
+          )}
+
+          {/* STEP 2: Review extracted details before confirming */}
+          {pendingResult && !addedToCart && (
+            <div className="bg-surface border border-outline-variant shadow-sm rounded-xl p-6 glass-card space-y-5">
+              {/* Review header */}
+              <div className="flex items-center gap-3 p-4 bg-amber-500/10 border border-amber-500/20 text-amber-700 rounded-xl">
+                <span className="material-symbols-outlined text-[22px]">rate_review</span>
                 <div>
-                  <h4 className="font-bold text-sm">Prescription scanned successfully!</h4>
-                  <p className="text-xs text-on-surface-variant mt-0.5">The extracted medicines have been added to your cart.</p>
+                  <h4 className="font-bold text-sm">Review Extracted Details</h4>
+                  <p className="text-xs text-on-surface-variant mt-0.5">Please verify the details below before adding medicines to your cart.</p>
                 </div>
               </div>
 
               {/* Patient info card */}
-              <div className="border border-outline-variant rounded-xl p-lg bg-surface-container-lowest space-y-4">
+              <div className="border border-outline-variant rounded-xl p-4 bg-surface-container-lowest space-y-4">
                 <h4 className="font-bold text-on-surface border-b border-outline-variant pb-2 text-sm uppercase tracking-wider text-primary">Patient Profile</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-xs text-outline block">Patient Name</span>
-                    <span className="font-semibold text-on-surface">{patientInfo?.name}</span>
+                    <span className="font-semibold text-on-surface">{pendingResult.patient.name}</span>
                   </div>
                   <div>
                     <span className="text-xs text-outline block">Rx Number</span>
-                    <span className="font-semibold text-on-surface">{prescriptionNumber}</span>
+                    <span className="font-semibold text-on-surface">{pendingResult.prescriptionNumber}</span>
                   </div>
                   <div>
                     <span className="text-xs text-outline block">Mobile Number</span>
-                    <span className="font-semibold text-on-surface">{patientInfo?.mobile}</span>
+                    <span className="font-semibold text-on-surface">{pendingResult.patient.mobile}</span>
                   </div>
                   <div className="col-span-2">
                     <span className="text-xs text-outline block">Residential Address</span>
-                    <span className="font-semibold text-on-surface">{patientInfo?.address}</span>
+                    <span className="font-semibold text-on-surface">{pendingResult.patient.address}</span>
                   </div>
                 </div>
               </div>
 
               {/* Extracted medicines list */}
-              <div className="border border-outline-variant rounded-xl p-lg bg-surface-container-lowest space-y-3">
+              <div className="border border-outline-variant rounded-xl p-4 bg-surface-container-lowest space-y-3">
                 <h4 className="font-bold text-on-surface border-b border-outline-variant pb-2 text-sm uppercase tracking-wider text-primary">Extracted Medicines</h4>
                 <div className="divide-y divide-outline-variant">
-                  {scannedMedicines.map((med) => (
+                  {pendingResult.medicines.map((med) => (
                     <div key={med.id} className="py-3 flex justify-between items-center text-sm">
                       <div>
                         <span className="font-semibold text-on-surface">{med.name}</span>
@@ -239,7 +251,37 @@ export default function OcrPage() {
                 </div>
               </div>
 
-              {/* Success Actions */}
+              {/* Confirm / Reject Actions */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                <button
+                  onClick={handleConfirmAndAdd}
+                  className="flex-1 bg-primary text-on-primary font-bold py-3.5 rounded-xl hover:bg-on-primary-fixed-variant transition-all text-center flex items-center justify-center gap-2 shadow-md"
+                >
+                  <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                  <span>Confirm &amp; Add to Cart</span>
+                </button>
+                <button
+                  onClick={resetScanner}
+                  className="flex-1 bg-surface-container-low border border-outline-variant text-on-surface-variant font-bold py-3.5 rounded-xl hover:bg-error-container/10 hover:border-error/30 hover:text-error transition-all text-center flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-[18px]">cancel</span>
+                  <span>Discard &amp; Re-scan</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: Added to cart confirmation */}
+          {addedToCart && (
+            <div className="bg-surface border border-outline-variant shadow-sm rounded-xl p-6 glass-card space-y-6">
+              <div className="flex items-center gap-3 p-4 bg-primary-container/10 border border-primary/20 text-primary rounded-xl">
+                <span className="material-symbols-outlined text-[24px]">check_circle</span>
+                <div>
+                  <h4 className="font-bold text-sm">Medicines Added to Cart!</h4>
+                  <p className="text-xs text-on-surface-variant mt-0.5">The prescription details and medicines have been saved to your cart.</p>
+                </div>
+              </div>
+
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <Link
                   href="/dashboard/cart"

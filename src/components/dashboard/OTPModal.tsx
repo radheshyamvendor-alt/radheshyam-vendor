@@ -3,13 +3,11 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getLocalAccessToken } from "@/lib/axios";
-import { verifyOtpApi, resendOtpApi } from "@/app/actions/order";
 
 interface OTPModalProps {
   isOpen: boolean;
   onClose: () => void;
   prescriptionNumber: string;
-  initialMockOtp?: string;
   orderId: string;
 }
 
@@ -17,44 +15,59 @@ export default function OTPModal({
   isOpen,
   onClose,
   prescriptionNumber,
-  initialMockOtp,
 }: OTPModalProps) {
   const accessToken = getLocalAccessToken() || "";
   const queryClient = useQueryClient();
 
   const [otp, setOtp] = useState("");
-  const [currentMockOtp, setCurrentMockOtp] = useState(initialMockOtp || "");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // OTP Verification Mutation
+  // OTP Verification — calls /api/otp/verify which proxies to HIS Chemist API
   const verifyMutation = useMutation({
-    mutationFn: () => verifyOtpApi(prescriptionNumber, otp, accessToken || ""),
+    mutationFn: async () => {
+      const res = await fetch("/api/otp/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ prescriptionNo: prescriptionNumber, otp }),
+      });
+      return res.json();
+    },
     onSuccess: (result) => {
       if (result.success) {
-        setSuccessMsg(result.message || "OTP Verified successfully!");
+        setSuccessMsg(result.message || "OTP verified successfully!");
         queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
         setTimeout(() => {
           onClose();
         }, 1500);
       } else {
-        setErrorMsg(result.error || "Verification failed. Invalid OTP.");
+        setErrorMsg(result.error || result.message || "Verification failed. Invalid OTP.");
       }
     },
   });
 
-  // OTP Resend Mutation
+  // OTP Resend — calls /api/otp/resend which proxies to HIS Chemist API
   const resendMutation = useMutation({
-    mutationFn: () => resendOtpApi(prescriptionNumber, accessToken || ""),
+    mutationFn: async () => {
+      const res = await fetch("/api/otp/resend", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ prescriptionNo: prescriptionNumber }),
+      });
+      return res.json();
+    },
     onSuccess: (result) => {
       if (result.success) {
-        setSuccessMsg("New OTP sent successfully!");
-        if (result.newOtp) {
-          setCurrentMockOtp(result.newOtp);
-        }
+        setSuccessMsg(result.message || "New OTP sent to patient's mobile.");
         setErrorMsg(null);
       } else {
-        setErrorMsg(result.error || "Failed to resend OTP.");
+        setErrorMsg(result.error || result.message || "Failed to resend OTP.");
       }
     },
   });
@@ -123,7 +136,7 @@ export default function OTPModal({
             </span>
           </div>
 
-          {/* Input field */}
+          {/* OTP Input */}
           <div className="space-y-1.5 pt-2">
             <label className="font-label-md text-label-md text-on-surface-variant block text-center" htmlFor="otp">
               OTP Verification Code
@@ -141,17 +154,7 @@ export default function OTPModal({
             />
           </div>
 
-          {/* Test Mock Helper Badge */}
-          {currentMockOtp && (
-            <div className="p-2.5 bg-primary-container/10 border border-primary/20 rounded-xl text-center">
-              <span className="text-[10px] text-outline uppercase tracking-wider block font-semibold mb-0.5">
-                Sandbox Mode OTP Helper
-              </span>
-              <span className="font-bold text-sm text-primary font-mono select-all">{currentMockOtp}</span>
-            </div>
-          )}
-
-          {/* Modal Actions */}
+          {/* Actions */}
           <div className="pt-4 flex flex-col gap-2">
             <button
               type="submit"

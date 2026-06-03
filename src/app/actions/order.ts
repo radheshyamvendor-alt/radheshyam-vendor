@@ -26,6 +26,17 @@ export interface CreateOrderInput {
 
 export async function createOrder(input: CreateOrderInput) {
   try {
+    // Block duplicate orders for the same prescription number
+    const existingOrder = await prisma.order.findFirst({
+      where: { prescriptionNumber: input.prescriptionNumber },
+    });
+    if (existingOrder) {
+      return {
+        success: false,
+        error: `An order for prescription number "${input.prescriptionNumber}" already exists (Status: ${existingOrder.status}). Duplicate orders are not allowed.`,
+      };
+    }
+
     const result = await prisma.$transaction(async (tx: Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">) => {
       // 1. Create or update patient
       const patient = await tx.patient.upsert({
@@ -201,63 +212,55 @@ export async function startDelivery(orderId: string) {
 }
 
 // Proxy OTP Verification to the HIS Chemist API
+// HIS API is the single source of truth — no local fallback if API is reachable
 export async function verifyOtpApi(prescriptionNo: string, otp: string, accessToken: string) {
   try {
+    let apiReachable = false;
     let apiSuccess = false;
-    let apiErrorMessage: string | null = null;
+    let apiMessage = "";
 
     try {
       const response = await axios.post(
         "https://hischemistapi.ongc.co.in/api/Otp/verify",
-        // Use PrescriptionNo (capital P) as required by the HIS Chemist API spec
         { PrescriptionNo: prescriptionNo, otp },
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
+          timeout: 10000,
         }
       );
-      if (response.data?.success) {
-        apiSuccess = true;
-      } else {
-        // Capture the failure message from the HIS API (e.g. "Invalid OTP", "OTP already used", "Prescription number is incorrect")
-        apiErrorMessage = response.data?.message || null;
-      }
+      apiReachable = true;
+      apiSuccess = response.data?.success === true;
+      apiMessage = response.data?.message || "";
     } catch (apiError) {
-      console.warn("HIS OTP Verify API connection failed, falling back to local DB validation:", apiError);
+      console.warn("HIS OTP Verify API unreachable:", apiError);
     }
 
-    // If HIS API explicitly returned a failure message, honour it without local fallback
-    if (apiErrorMessage) {
-      return { success: false, error: apiErrorMessage };
-    }
+    // If HIS API responded — use its result as the ONLY authority
+    if (apiReachable) {
+      if (!apiSuccess) {
+        // Return the exact failure message from the HIS API
+        return { success: false, error: apiMessage || "OTP verification failed" };
+      }
 
-    // Check locally if database has the matching OTP (to support seamless sandboxed flow)
-    const localOrder = await prisma.order.findFirst({
-      where: {
-        prescriptionNumber: prescriptionNo,
-      },
-    });
-
-    if (!localOrder) {
-      return { success: false, error: "Prescription number is incorrect" };
-    }
-
-    if (localOrder.status === "COMPLETED") {
-      return { success: false, error: "OTP already used" };
-    }
-
-    if (apiSuccess || localOrder.otp === otp) {
-      await prisma.order.update({
-        where: { id: localOrder.id },
-        data: { status: "COMPLETED" },
+      // HIS API confirmed success — update local order status to COMPLETED
+      const localOrder = await prisma.order.findFirst({
+        where: { prescriptionNumber: prescriptionNo },
       });
+      if (localOrder) {
+        await prisma.order.update({
+          where: { id: localOrder.id },
+          data: { status: "COMPLETED" },
+        });
+      }
       revalidatePath("/dashboard");
-      return { success: true, message: "OTP verified successfully" };
+      return { success: true, message: apiMessage || "OTP verified successfully" };
     }
 
-    return { success: false, error: "Invalid OTP" };
+    // HIS API was unreachable — return a clear network error, do not fall back
+    return { success: false, error: "Unable to reach ONGC HIS API. Please check your network and try again." };
   } catch (error) {
     const message = error instanceof Error ? error.message : "OTP Verification failed";
     return { success: false, error: message };
@@ -265,49 +268,42 @@ export async function verifyOtpApi(prescriptionNo: string, otp: string, accessTo
 }
 
 // Proxy Resend OTP to the HIS Chemist API
+// HIS API is the single source of truth — no local OTP generation if API is reachable
 export async function resendOtpApi(prescriptionNo: string, accessToken: string) {
   try {
+    let apiReachable = false;
     let apiSuccess = false;
+    let apiMessage = "";
+
     try {
       const response = await axios.post(
         "https://hischemistapi.ongc.co.in/api/Otp/resend",
-        // Use PrescriptionNo (capital P) as a number as required by the HIS Chemist API spec
         { PrescriptionNo: Number(prescriptionNo) },
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
+          timeout: 10000,
         }
       );
-      if (response.data?.success) {
-        apiSuccess = true;
-      }
+      apiReachable = true;
+      apiSuccess = response.data?.success === true;
+      apiMessage = response.data?.message || "";
     } catch (apiError) {
-      console.warn("HIS OTP Resend API connection failed, falling back to local DB generation:", apiError);
+      console.warn("HIS OTP Resend API unreachable:", apiError);
     }
 
-    // If HIS API confirmed resend, skip local DB regeneration
-    if (apiSuccess) {
-      return { success: true, message: "OTP resent successfully" };
+    // If HIS API responded — use its result directly
+    if (apiReachable) {
+      if (!apiSuccess) {
+        return { success: false, error: apiMessage || "Failed to resend OTP" };
+      }
+      return { success: true, message: apiMessage || "OTP resent successfully" };
     }
 
-    // Generate new OTP locally
-    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const order = await prisma.order.findFirst({
-      where: { prescriptionNumber: prescriptionNo },
-    });
-
-    if (order) {
-      await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          otp: newOtp,
-        },
-      });
-    }
-
-    return { success: true, message: "OTP resent successfully!", newOtp };
+    // HIS API was unreachable
+    return { success: false, error: "Unable to reach ONGC HIS API. Please check your network and try again." };
   } catch (error) {
     const message = error instanceof Error ? error.message : "OTP resend failed";
     return { success: false, error: message };

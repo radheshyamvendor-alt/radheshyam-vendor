@@ -16,6 +16,12 @@ export default function CartPage() {
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  // Pending OCR result — user must confirm before adding to cart
+  const [pendingOcr, setPendingOcr] = useState<{
+    prescriptionNumber: string;
+    patient: { name: string; mobile: string; address: string; gender: string; age: number };
+    medicines: Array<{ id: string; name: string; price: number; quantity: number; stock: number }>;
+  } | null>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -51,6 +57,7 @@ export default function CartPage() {
 
     setIsOcrProcessing(true);
     setOcrError(null);
+    setPendingOcr(null);
 
     const formData = new FormData();
     formData.append("file", selectedFile);
@@ -63,17 +70,8 @@ export default function CartPage() {
 
       const resData = await response.json();
       if (resData.success) {
-        const ocrData = resData.data;
-        if (typeof window !== "undefined") {
-          localStorage.setItem(
-            "radheshyam_scanned_rx",
-            JSON.stringify({
-              prescriptionNumber: ocrData.prescriptionNumber,
-              patient: ocrData.patient,
-            })
-          );
-        }
-        addMultipleToCart(ocrData.medicines);
+        // Do NOT add to cart yet — show review panel first
+        setPendingOcr(resData.data);
       } else {
         setOcrError(resData.error || "OCR extraction failed. Please try again.");
       }
@@ -84,6 +82,26 @@ export default function CartPage() {
     } finally {
       setIsOcrProcessing(false);
     }
+  };
+
+  const handleConfirmOcr = () => {
+    if (!pendingOcr) return;
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        "radheshyam_scanned_rx",
+        JSON.stringify({
+          prescriptionNumber: pendingOcr.prescriptionNumber,
+          patient: pendingOcr.patient,
+        })
+      );
+    }
+    addMultipleToCart(pendingOcr.medicines);
+    setPendingOcr(null);
+  };
+
+  const handleDiscardOcr = () => {
+    setPendingOcr(null);
+    setOcrError(null);
   };
 
   // Financial calculations
@@ -128,58 +146,117 @@ export default function CartPage() {
               <div className="h-[1px] bg-outline-variant flex-grow"></div>
             </div>
 
-            {/* OCR Dropzone */}
-            <div className="bg-surface-container-lowest border border-outline-variant shadow-sm rounded-2xl p-6 glass-card space-y-4">
-              {ocrError && (
-                <div className="p-4 bg-error-container/20 border border-error/20 text-error rounded-xl flex items-center gap-3 text-sm">
-                  <span className="material-symbols-outlined text-[18px]">error</span>
-                  <span>{ocrError}</span>
+            {/* OCR Dropzone or Review Panel */}
+            {pendingOcr ? (
+              /* Review extracted details before confirming */
+              <div className="bg-surface-container-lowest border border-outline-variant shadow-sm rounded-2xl p-5 glass-card space-y-4">
+                <div className="flex items-center gap-3 p-3 bg-amber-500/10 border border-amber-500/20 text-amber-700 rounded-xl text-sm">
+                  <span className="material-symbols-outlined text-[20px]">rate_review</span>
+                  <div>
+                    <span className="font-bold block">Review Extracted Details</span>
+                    <span className="text-xs text-on-surface-variant">Verify before adding to cart.</span>
+                  </div>
                 </div>
-              )}
-              {isOcrProcessing ? (
-                <div className="h-44 border border-outline-variant rounded-xl bg-surface-container-low flex flex-col items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-85 shadow-[0_0_10px_#003d9b] animate-[bounce_2.5s_infinite_linear]"></div>
-                  <svg className="animate-spin h-8 w-8 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <h4 className="mt-3 font-bold text-on-surface text-sm">Processing Prescription...</h4>
-                  <p className="text-[10px] text-on-surface-variant mt-0.5 animate-pulse">Extracting patient &amp; medicine details...</p>
+
+                <div className="grid grid-cols-2 gap-3 text-sm border border-outline-variant rounded-xl p-3 bg-surface">
+                  <div>
+                    <span className="text-xs text-outline block">Patient Name</span>
+                    <span className="font-semibold text-on-surface">{pendingOcr.patient.name}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-outline block">Rx Number</span>
+                    <span className="font-semibold text-on-surface">{pendingOcr.prescriptionNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-outline block">Mobile</span>
+                    <span className="font-semibold text-on-surface">{pendingOcr.patient.mobile}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-outline block">Address</span>
+                    <span className="font-semibold text-on-surface text-xs">{pendingOcr.patient.address}</span>
+                  </div>
                 </div>
-              ) : (
-                <div
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  className={`h-44 border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-4 cursor-pointer transition-all ${
-                    isDragOver
-                      ? "border-primary bg-primary/5"
-                      : "border-outline-variant hover:border-primary/50"
-                  }`}
-                  onClick={() => document.getElementById("file-input-empty")?.click()}
-                >
-                  <input
-                    id="file-input-empty"
-                    type="file"
-                    accept="application/pdf,image/png,image/jpeg,image/jpg"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <span className="material-symbols-outlined text-[36px] text-primary mb-2 animate-pulse">
-                    document_scanner
-                  </span>
-                  <span className="font-bold text-on-surface text-sm">Scan Prescription to Fill Cart</span>
-                  <span className="text-[10px] text-on-surface-variant mt-0.5">Supports PDF, PNG, JPG, JPEG</span>
+
+                <div className="border border-outline-variant rounded-xl p-3 bg-surface divide-y divide-outline-variant text-sm">
+                  {pendingOcr.medicines.map((med) => (
+                    <div key={med.id} className="py-2 flex justify-between items-center">
+                      <span className="font-semibold text-on-surface">{med.name}</span>
+                      <span className="text-primary font-bold text-xs">Qty: {med.quantity} · ₹{(med.price * med.quantity).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-3">
                   <button
-                    type="button"
-                    className="mt-3 px-3 py-1.5 bg-surface border border-outline-variant rounded-lg font-label-sm text-label-sm text-on-surface hover:bg-surface-container transition-all"
+                    onClick={handleConfirmOcr}
+                    className="flex-1 bg-primary text-on-primary font-bold py-3 rounded-xl hover:bg-on-primary-fixed-variant transition-all flex items-center justify-center gap-2 text-sm shadow-md"
                   >
-                    Select File
+                    <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                    Confirm &amp; Add
+                  </button>
+                  <button
+                    onClick={handleDiscardOcr}
+                    className="flex-1 border border-outline-variant bg-surface text-on-surface-variant hover:bg-error-container/10 hover:border-error/30 hover:text-error font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-sm"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">cancel</span>
+                    Discard
                   </button>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="bg-surface-container-lowest border border-outline-variant shadow-sm rounded-2xl p-6 glass-card space-y-4">
+                {ocrError && (
+                  <div className="p-4 bg-error-container/20 border border-error/20 text-error rounded-xl flex items-center gap-3 text-sm">
+                    <span className="material-symbols-outlined text-[18px]">error</span>
+                    <span>{ocrError}</span>
+                  </div>
+                )}
+                {isOcrProcessing ? (
+                  <div className="h-44 border border-outline-variant rounded-xl bg-surface-container-low flex flex-col items-center justify-center relative overflow-hidden">
+                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-85 shadow-[0_0_10px_#003d9b] animate-[bounce_2.5s_infinite_linear]"></div>
+                    <svg className="animate-spin h-8 w-8 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <h4 className="mt-3 font-bold text-on-surface text-sm">Processing Prescription...</h4>
+                    <p className="text-[10px] text-on-surface-variant mt-0.5 animate-pulse">Extracting patient &amp; medicine details...</p>
+                  </div>
+                ) : (
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`h-44 border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-4 cursor-pointer transition-all ${
+                      isDragOver
+                        ? "border-primary bg-primary/5"
+                        : "border-outline-variant hover:border-primary/50"
+                    }`}
+                    onClick={() => document.getElementById("file-input-empty")?.click()}
+                  >
+                    <input
+                      id="file-input-empty"
+                      type="file"
+                      accept="application/pdf,image/png,image/jpeg,image/jpg"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <span className="material-symbols-outlined text-[36px] text-primary mb-2 animate-pulse">
+                      document_scanner
+                    </span>
+                    <span className="font-bold text-on-surface text-sm">Scan Prescription to Fill Cart</span>
+                    <span className="text-[10px] text-on-surface-variant mt-0.5">Supports PDF, PNG, JPG, JPEG</span>
+                    <button
+                      type="button"
+                      className="mt-3 px-3 py-1.5 bg-surface border border-outline-variant rounded-lg font-label-sm text-label-sm text-on-surface hover:bg-surface-container transition-all"
+                    >
+                      Select File
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+
         ) : (
           /* Cart Content Layout */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-lg items-start">
