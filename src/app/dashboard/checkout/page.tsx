@@ -29,7 +29,7 @@ export default function Checkout() {
   const queryClient = useQueryClient();
 
   // Wizard Step
-  const [step, setStep] = useState(1); // 1: Upload, 2: Review, 3: Success
+  const [step, setStep] = useState(2); // Start directly on Review Details
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Load initial cart items and scanned prescription details on mount
@@ -271,35 +271,6 @@ export default function Checkout() {
 
       {/* Wizard content */}
       <main className="max-w-[650px] mx-auto space-y-6">
-        {/* Step Indicator Header */}
-        <div className="bg-surface border border-outline-variant shadow-sm rounded-xl p-4 flex items-center justify-between glass-card select-none">
-          <div className="flex items-center gap-2">
-            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-              step === 1 ? "bg-primary text-on-primary" : "bg-primary-container/20 text-primary"
-            }`}>
-              1
-            </span>
-            <span className="text-xs font-bold text-on-surface">Upload</span>
-          </div>
-          <div className="h-[1px] bg-outline-variant flex-grow mx-4"></div>
-          <div className="flex items-center gap-2">
-            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-              step === 2 ? "bg-primary text-on-primary" : "bg-surface-container text-outline"
-            }`}>
-              2
-            </span>
-            <span className={`text-xs font-bold ${step >= 2 ? "text-on-surface" : "text-outline"}`}>Review Details</span>
-          </div>
-          <div className="h-[1px] bg-outline-variant flex-grow mx-4"></div>
-          <div className="flex items-center gap-2">
-            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-              step === 3 ? "bg-primary text-on-primary" : "bg-surface-container text-outline"
-            }`}>
-              3
-            </span>
-            <span className={`text-xs font-bold ${step === 3 ? "text-on-surface" : "text-outline"}`}>Confirm Order</span>
-          </div>
-        </div>
 
         {errorMsg && (
           <div className="p-3 bg-error-container/30 border border-error text-error text-sm rounded-xl flex items-center gap-2">
@@ -511,20 +482,12 @@ export default function Checkout() {
               </div>
             </div>
 
-            {/* Checkouts Actions */}
-            <div className="flex items-center justify-between gap-4">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="px-6 py-3.5 bg-surface border border-outline-variant text-on-surface-variant rounded-xl font-label-md text-label-md hover:bg-surface-container active:scale-95 transition-all"
-              >
-                Re-upload
-              </button>
-
+            {/* Checkout Actions */}
+            <div className="pt-2">
               <button
                 type="submit"
                 disabled={createOrderMutation.isPending}
-                className="flex-grow h-14 bg-primary text-on-primary rounded-xl font-label-md text-label-md flex items-center justify-center gap-2 shadow-lg hover:bg-on-primary-fixed-variant active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full h-14 bg-primary text-on-primary rounded-xl font-label-md text-label-md flex items-center justify-center gap-2 shadow-lg hover:bg-on-primary-fixed-variant active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {createOrderMutation.isPending ? (
                   <>
