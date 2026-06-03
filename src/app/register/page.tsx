@@ -189,7 +189,7 @@ export default function Register() {
       <div className="mb-10 bg-surface-container-lowest rounded-xl p-4 flex items-center gap-4 shadow-sm border border-outline-variant">
         <div className="relative w-12 h-12">
           <svg className="w-12 h-12 transform -rotate-90">
-            <circle className="text-surface-container" cx="24" cy="24" fill="transparent" r="20" stroke="currentColor" stroke-width="4"></circle>
+            <circle className="text-surface-container" cx="24" cy="24" fill="transparent" r="20" stroke="currentColor" strokeWidth="4"></circle>
             <circle
               className="text-primary progress-ring"
               cx="24"
@@ -199,7 +199,7 @@ export default function Register() {
               stroke="currentColor"
               stroke-dasharray="125.6"
               stroke-dashoffset={progress.offset}
-              stroke-width="4"
+              strokeWidth="4"
             ></circle>
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
