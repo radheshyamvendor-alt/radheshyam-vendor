@@ -382,7 +382,169 @@ export default function CartPage() {
 
         ) : (
           /* Cart Content Layout */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-lg items-start">
+          <div className="space-y-6">
+            {pendingOcr && (
+              <div className="bg-surface-container-lowest border border-outline-variant shadow-sm rounded-2xl p-5 glass-card space-y-4 max-w-xl mx-auto">
+                <div className="flex justify-between items-center bg-amber-500/10 border border-amber-500/20 text-amber-700 p-3 rounded-xl">
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="material-symbols-outlined text-[20px]">rate_review</span>
+                    <div>
+                      <span className="font-bold block">Review Extracted Details</span>
+                      <span className="text-xs text-on-surface-variant">Verify before adding to cart.</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingOcr(!isEditingOcr)}
+                    className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-bold bg-primary/10 px-2 py-1 rounded-lg transition-all"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">{isEditingOcr ? "check" : "edit"}</span>
+                    <span>{isEditingOcr ? "Done" : "Edit"}</span>
+                  </button>
+                </div>
+
+                {isEditingOcr ? (
+                  <div className="space-y-3 text-sm border border-outline-variant rounded-xl p-3 bg-surface">
+                    <div>
+                      <label className="text-[10px] font-semibold text-outline block mb-0.5">Patient Name</label>
+                      <input
+                        type="text"
+                        value={pendingOcr.patient.name}
+                        onChange={(e) => setPendingOcr({
+                          ...pendingOcr,
+                          patient: { ...pendingOcr.patient, name: e.target.value }
+                        })}
+                        className="w-full px-2 py-1.5 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:ring-1 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-semibold text-outline block mb-0.5">Rx Number</label>
+                        <input
+                          type="text"
+                          value={pendingOcr.prescriptionNumber}
+                          onChange={(e) => setPendingOcr({
+                            ...pendingOcr,
+                            prescriptionNumber: e.target.value
+                          })}
+                          className="w-full px-2 py-1.5 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:ring-1 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-outline block mb-0.5">Mobile</label>
+                        <input
+                          type="text"
+                          value={pendingOcr.patient.mobile}
+                          onChange={(e) => setPendingOcr({
+                            ...pendingOcr,
+                            patient: { ...pendingOcr.patient, mobile: e.target.value }
+                          })}
+                          className="w-full px-2 py-1.5 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:ring-1 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-outline block mb-0.5">Address</label>
+                      <textarea
+                        value={pendingOcr.patient.address}
+                        onChange={(e) => setPendingOcr({
+                          ...pendingOcr,
+                          patient: { ...pendingOcr.patient, address: e.target.value }
+                        })}
+                        rows={2}
+                        className="w-full px-2 py-1.5 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:ring-1 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 text-sm border border-outline-variant rounded-xl p-3 bg-surface">
+                    <div>
+                      <span className="text-xs text-outline block">Patient Name</span>
+                      <span className="font-semibold text-on-surface">{pendingOcr.patient.name}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-outline block">Rx Number</span>
+                      <span className="font-semibold text-on-surface">{pendingOcr.prescriptionNumber}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-outline block">Mobile</span>
+                      <span className="font-semibold text-on-surface">{pendingOcr.patient.mobile}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-outline block">Address</span>
+                      <span className="font-semibold text-on-surface text-xs">{pendingOcr.patient.address}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="border border-outline-variant rounded-xl p-3 bg-surface divide-y divide-outline-variant text-sm">
+                  {pendingOcr.medicines.length === 0 ? (
+                    <div className="py-2 text-center text-xs text-on-surface-variant font-semibold">
+                      No medicines.
+                    </div>
+                  ) : (
+                    pendingOcr.medicines.map((med) => (
+                      <div key={med.id} className="py-2 flex justify-between items-center gap-2">
+                        <span className="font-semibold text-on-surface text-xs sm:text-sm">{med.name}</span>
+                        {isEditingOcr ? (
+                          <div className="flex items-center gap-2">
+                            {/* Quantity Editor */}
+                            <div className="flex items-center border border-outline-variant rounded-lg overflow-hidden bg-surface">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateOcrMedQty(med.id, med.quantity - 1)}
+                                className="px-1.5 py-0.5 hover:bg-surface-container text-primary font-bold transition-all active:scale-75 text-xs"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">remove</span>
+                              </button>
+                              <span className="px-2.5 py-0.5 font-bold text-on-surface text-[11px] select-none">
+                                {med.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateOcrMedQty(med.id, med.quantity + 1)}
+                                className="px-1.5 py-0.5 hover:bg-surface-container text-primary font-bold transition-all active:scale-75 text-xs"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">add</span>
+                              </button>
+                            </div>
+                            {/* Remove button */}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveOcrMed(med.id)}
+                              className="text-error hover:bg-error-container/10 p-1.5 rounded-full transition-colors"
+                              title="Delete medicine"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">delete</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-primary font-bold text-xs">Qty: {med.quantity} · ₹{(med.price * med.quantity).toFixed(2)}</span>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleConfirmOcr}
+                    className="flex-1 bg-primary text-on-primary font-bold py-3 rounded-xl hover:bg-on-primary-fixed-variant transition-all flex items-center justify-center gap-2 text-sm shadow-md"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                    Confirm &amp; Add
+                  </button>
+                  <button
+                    onClick={handleDiscardOcr}
+                    className="flex-1 border border-outline-variant bg-surface text-on-surface-variant hover:bg-error-container/10 hover:border-error/30 hover:text-error font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-sm"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">cancel</span>
+                    Discard
+                  </button>
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-lg items-start">
             {/* Cart Items Section */}
             <div className="lg:col-span-8 space-y-md">
               {cart.map((item) => {
@@ -572,6 +734,7 @@ export default function CartPage() {
               </div>
             </div>
           </div>
+        </div>
         )}
       </main>
 
