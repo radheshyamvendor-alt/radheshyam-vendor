@@ -64,6 +64,15 @@ export default function CartPage() {
       const resData = await response.json();
       if (resData.success) {
         const ocrData = resData.data;
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            "radheshyam_scanned_rx",
+            JSON.stringify({
+              prescriptionNumber: ocrData.prescriptionNumber,
+              patient: ocrData.patient,
+            })
+          );
+        }
         addMultipleToCart(ocrData.medicines);
       } else {
         setOcrError(resData.error || "OCR extraction failed. Please try again.");

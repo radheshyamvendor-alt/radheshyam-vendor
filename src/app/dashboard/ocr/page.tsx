@@ -82,6 +82,15 @@ export default function OcrPage() {
       const resData = await response.json();
       if (resData.success) {
         const ocrData = resData.data;
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            "radheshyam_scanned_rx",
+            JSON.stringify({
+              prescriptionNumber: ocrData.prescriptionNumber,
+              patient: ocrData.patient,
+            })
+          );
+        }
         setPrescriptionNumber(ocrData.prescriptionNumber);
         setPatientInfo(ocrData.patient);
         setScannedMedicines(ocrData.medicines);

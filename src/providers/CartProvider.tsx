@@ -89,6 +89,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = () => {
     setCart([]);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("radheshyam_scanned_rx");
+    }
   };
 
   const addMultipleToCart = (items: Array<Omit<CartItem, "category" | "image"> & { category?: string; image?: string | null }>) => {

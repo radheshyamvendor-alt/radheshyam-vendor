@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import useAuth from "@/hooks/useAuth";
 import { useCart } from "@/providers/CartProvider";
@@ -30,6 +30,43 @@ export default function Checkout() {
 
   // Wizard Step
   const [step, setStep] = useState(1); // 1: Upload, 2: Review, 3: Success
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Load initial cart items and scanned prescription details on mount
+  useEffect(() => {
+    if (isInitialized) return;
+    
+    if (cart && cart.length > 0) {
+      setOrderItems(
+        cart.map((item) => ({
+          medicineId: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          stock: item.stock,
+        }))
+      );
+      setStep(2); // Default to review step
+      setIsInitialized(true);
+    }
+    
+    const savedRx = localStorage.getItem("radheshyam_scanned_rx");
+    if (savedRx) {
+      try {
+        const parsed = JSON.parse(savedRx);
+        if (parsed.prescriptionNumber) setPrescriptionNumber(parsed.prescriptionNumber);
+        if (parsed.patient) {
+          if (parsed.patient.name) setPatientName(parsed.patient.name);
+          if (parsed.patient.mobile) setPatientMobile(parsed.patient.mobile);
+          if (parsed.patient.address) setPatientAddress(parsed.patient.address);
+          if (parsed.patient.gender) setPatientGender(parsed.patient.gender);
+          if (parsed.patient.age) setPatientAge(Number(parsed.patient.age));
+        }
+      } catch (e) {
+        console.error("Failed to parse scanned Rx details from localStorage", e);
+      }
+    }
+  }, [cart, isInitialized]);
 
   // File Upload states
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
@@ -113,6 +150,15 @@ export default function Checkout() {
       const resData = await response.json();
       if (resData.success) {
         const ocrData = resData.data;
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            "radheshyam_scanned_rx",
+            JSON.stringify({
+              prescriptionNumber: ocrData.prescriptionNumber,
+              patient: ocrData.patient,
+            })
+          );
+        }
         setPrescriptionNumber(ocrData.prescriptionNumber);
         setPatientName(ocrData.patient.name);
         setPatientMobile(ocrData.patient.mobile);
