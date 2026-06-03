@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import useAuth from "@/hooks/useAuth";
-import { getDashboardStats, startDelivery } from "@/app/actions/order";
+import { getDashboardStats, startDelivery, getOrders } from "@/app/actions/order";
 import OTPModal from "@/components/dashboard/OTPModal";
 import Header from "@/components/dashboard/Header";
 import BottomNav from "@/components/dashboard/BottomNav";
@@ -37,10 +37,20 @@ export default function OTPVerificationPage() {
   const [otpPrescriptionNo, setOtpPrescriptionNo] = useState("");
   const [otpOrderId, setOtpOrderId] = useState("");
 
-  // Fetch Dashboard Stats & Recents
-  const { data, isLoading, error } = useQuery({
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
+  // Fetch Dashboard Stats
+  const { data, isLoading: isStatsLoading, error: statsError } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: () => getDashboardStats(),
+  });
+
+  // Fetch paginated orders (server-side pagination of 10 items)
+  const { data: ordersResult, isLoading: isOrdersLoading, error: ordersError } = useQuery({
+    queryKey: ["orders", page],
+    queryFn: () => getOrders(page, pageSize),
   });
 
   // Start Delivery mutation
@@ -49,6 +59,7 @@ export default function OTPVerificationPage() {
     onSuccess: (result, orderId) => {
       if (result.success && result.data) {
         queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["orders"] });
         
         // Open OTP Verification Dialog directly
         setOtpOrderId(orderId);
@@ -65,7 +76,9 @@ export default function OTPVerificationPage() {
     completedDeliveries: 0,
   };
 
-  const recentOrders = ((data && data.success && data.recentOrders) ? data.recentOrders : []) as DashboardOrder[];
+  const recentOrders = (ordersResult?.success ? (ordersResult.data ?? []) : []) as DashboardOrder[];
+  const totalPages = ordersResult?.success ? (ordersResult.pagination?.totalPages ?? 1) : 1;
+  const totalCount = ordersResult?.success ? (ordersResult.pagination?.totalCount ?? 0) : 0;
 
   const handleStartDelivery = (order: DashboardOrder) => {
     startDeliveryMutation.mutate(order.id);
@@ -76,6 +89,9 @@ export default function OTPVerificationPage() {
     setOtpPrescriptionNo(order.prescriptionNumber || "");
     setIsOtpOpen(true);
   };
+
+  const isLoading = isStatsLoading || isOrdersLoading;
+  const error = statsError || ordersError;
 
   return (
     <div className="min-h-screen bg-background text-on-surface">
@@ -394,6 +410,23 @@ export default function OTPVerificationPage() {
                         </div>
                       );
                     })}
+                  </div>
+
+                  {/* Pagination Footer */}
+                  <div className="p-lg border-t border-outline-variant flex items-center justify-between">
+                    <span className="font-label-md text-label-md text-on-surface-variant font-medium">
+                      Showing {totalCount > 0 ? (page - 1) * pageSize + 1 : 0} to {Math.min(page * pageSize, totalCount)} of {totalCount} orders
+                    </span>
+                    <div className="flex gap-xs">
+                      <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                        className="px-4 py-2 border border-outline-variant rounded-lg text-label-md font-label-md hover:bg-surface-container-low transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        Previous
+                      </button>
+                      <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                        className="px-4 py-2 bg-[#003d9b] text-white rounded-lg text-label-md font-label-md hover:opacity-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
+                        Next
+                      </button>
+                    </div>
                   </div>
                 </>
               )}

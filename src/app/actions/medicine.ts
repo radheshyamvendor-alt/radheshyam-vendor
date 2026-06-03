@@ -12,7 +12,7 @@ export interface MedicineInput {
   image?: string;
 }
 
-export async function getMedicines(search?: string, category?: string) {
+export async function getMedicines(search?: string, category?: string, page?: number, pageSize?: number) {
   try {
     const whereClause: {
       name?: { contains: string; mode: "insensitive" };
@@ -30,18 +30,101 @@ export async function getMedicines(search?: string, category?: string) {
       whereClause.category = category;
     }
 
-    const medicines = await prisma.medicine.findMany({
-      where: whereClause,
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    const skip = page && pageSize ? (page - 1) * pageSize : undefined;
+    const take = pageSize ? pageSize : undefined;
+
+    const [medicines, totalCount] = await Promise.all([
+      prisma.medicine.findMany({
+        where: whereClause,
+        orderBy: {
+          createdAt: "desc",
+        },
+        skip,
+        take,
+      }),
+      prisma.medicine.count({
+        where: whereClause,
+      }),
+    ]);
     
-    return { success: true, data: medicines };
+    return { 
+      success: true, 
+      data: medicines,
+      pagination: page && pageSize ? {
+        page,
+        pageSize,
+        totalCount,
+        totalPages: Math.ceil(totalCount / pageSize),
+      } : undefined
+    };
   } catch (error) {
     console.error("Failed to fetch medicines:", error);
     const message = error instanceof Error ? error.message : "Failed to fetch medicines";
     return { success: false, error: message };
+  }
+}
+
+export async function getInventoryStats() {
+  try {
+    const totalMedicines = await prisma.medicine.count();
+    
+    const stockSum = await prisma.medicine.aggregate({
+      _sum: { stock: true },
+    });
+    const totalStock = stockSum._sum.stock ?? 0;
+
+    const lowStockCount = await prisma.medicine.count({
+      where: { stock: { lt: 10 } },
+    });
+
+    const expiringSoonCount = await prisma.medicine.count({
+      where: { stock: { gt: 0, lt: 15 } },
+    });
+
+    const categories = await prisma.medicine.groupBy({
+      by: ['category'],
+      _sum: { stock: true },
+    });
+    const activeCategoriesCount = categories.length;
+
+    // Category health details
+    let tabletsStock = 0;
+    let capsulesStock = 0;
+    let syrupsStock = 0;
+    let otherStock = 0;
+
+    for (const cat of categories) {
+      const sum = cat._sum.stock ?? 0;
+      if (cat.category === "Tablets") tabletsStock = sum;
+      else if (cat.category === "Capsules") capsulesStock = sum;
+      else if (cat.category === "Syrups") syrupsStock = sum;
+      else otherStock += sum;
+    }
+
+    // Recent updates for logs
+    const recentUpdates = await prisma.medicine.findMany({
+      orderBy: { updatedAt: "desc" },
+      take: 3,
+    });
+
+    return {
+      success: true,
+      data: {
+        totalMedicines,
+        totalStock,
+        lowStockCount,
+        expiringSoonCount,
+        activeCategoriesCount,
+        tabletsStock,
+        capsulesStock,
+        syrupsStock,
+        otherStock,
+        recentUpdates,
+      }
+    };
+  } catch (error) {
+    console.error("Failed to get inventory stats:", error);
+    return { success: false, error: "Failed to get inventory stats" };
   }
 }
 

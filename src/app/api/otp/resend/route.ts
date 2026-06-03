@@ -15,8 +15,7 @@ export async function POST(req: NextRequest) {
     if (result.success) {
       return NextResponse.json({ 
         success: true, 
-        message: result.message, 
-        newOtp: result.newOtp 
+        message: result.message
       });
     }
     

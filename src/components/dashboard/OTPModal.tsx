@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getLocalAccessToken } from "@/lib/axios";
+import { completeOrderLocal } from "@/app/actions/order";
 
 interface OTPModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export default function OTPModal({
   isOpen,
   onClose,
   prescriptionNumber,
+  orderId,
 }: OTPModalProps) {
   const accessToken = getLocalAccessToken() || "";
   const queryClient = useQueryClient();
@@ -23,54 +25,64 @@ export default function OTPModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // OTP Verification — calls /api/otp/verify which proxies to HIS Chemist API
+  // OTP Verification — calls HIS Chemist API directly
   const verifyMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/otp/verify", {
+      const res = await fetch("https://hischemistapi.ongc.co.in/api/Otp/verify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ prescriptionNo: prescriptionNumber, otp }),
+        body: JSON.stringify({ PrescriptionNo: prescriptionNumber, otp }),
       });
-      return res.json();
-    },
-    onSuccess: (result) => {
-      if (result.success) {
-        setSuccessMsg(result.message || "OTP verified successfully!");
-        queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-        setTimeout(() => {
-          onClose();
-        }, 1500);
-      } else {
-        setErrorMsg(result.error || result.message || "Verification failed. Invalid OTP.");
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || data.error || "Verification failed. Invalid OTP.");
       }
+      return data;
+    },
+    onSuccess: async (result) => {
+      // Mark as completed locally since verification succeeded
+      await completeOrderLocal(prescriptionNumber);
+      
+      setSuccessMsg(result.message || "OTP verified successfully!");
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    },
+    onError: (err: any) => {
+      setErrorMsg(err.message || "Verification failed. Invalid OTP.");
     },
   });
 
-  // OTP Resend — calls /api/otp/resend which proxies to HIS Chemist API
+  // OTP Resend — calls HIS Chemist API directly
   const resendMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/otp/resend", {
+      const res = await fetch("https://hischemistapi.ongc.co.in/api/Otp/resend", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ prescriptionNo: prescriptionNumber }),
+        body: JSON.stringify({ PrescriptionNo: Number(prescriptionNumber) }),
       });
-      return res.json();
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || data.error || "Failed to resend OTP.");
+      }
+      return data;
     },
     onSuccess: (result) => {
-      if (result.success) {
-        setSuccessMsg(result.message || "New OTP sent to patient's mobile.");
-        setErrorMsg(null);
-      } else {
-        setErrorMsg(result.error || result.message || "Failed to resend OTP.");
-      }
+      setSuccessMsg(result.message || "New OTP sent to patient's mobile.");
+      setErrorMsg(null);
+    },
+    onError: (err: any) => {
+      setErrorMsg(err.message || "Failed to resend OTP.");
     },
   });
+
 
   if (!isOpen) return null;
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import useAuth from "@/hooks/useAuth";
@@ -19,17 +19,26 @@ export default function Catalog() {
 
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   // Track added items for instant feedback animation
   const [addedItems, setAddedItems] = useState<Record<string, boolean>>({});
 
-  // Fetch catalog medicines
+  // Reset page on search or category filter change
+  useEffect(() => {
+    setPage(1);
+  }, [search, activeCategory]);
+
+  // Fetch catalog medicines (server-side paginated)
   const { data: queryResult, isLoading, error } = useQuery({
-    queryKey: ["catalog-medicines", search, activeCategory],
-    queryFn: () => getMedicines(search, activeCategory),
+    queryKey: ["catalog-medicines", search, activeCategory, page],
+    queryFn: () => getMedicines(search, activeCategory, page, pageSize),
   });
 
   const medicines = (queryResult?.success ? (queryResult.data ?? []) : []) as MedicineItem[];
+  const totalPages = queryResult?.success ? (queryResult.pagination?.totalPages ?? 1) : 1;
+  const totalCount = queryResult?.success ? (queryResult.pagination?.totalCount ?? 0) : 0;
 
   const handleCheckoutRedirect = () => {
     router.push("/dashboard/cart");
@@ -154,94 +163,113 @@ export default function Catalog() {
               No stock medicines found in &quot;{activeCategory}&quot;. Add new items in the Inventory panel.
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-lg">
-              {medicines.map((med: MedicineItem) => {
-                const inCartItem = cart.find((i) => i.id === med.id);
-                const remainingStock = med.stock - (inCartItem?.quantity || 0);
-                const isOutOfStock = remainingStock <= 0;
-                const isLowStock = remainingStock > 0 && remainingStock < 10;
-                
-                // Strike-through list price calculation for premium aesthetic (MRP vs Sale Price)
-                const mockListPrice = med.price * 1.25;
-                const isAdded = addedItems[med.id];
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-lg">
+                {medicines.map((med: MedicineItem) => {
+                  const inCartItem = cart.find((i) => i.id === med.id);
+                  const remainingStock = med.stock - (inCartItem?.quantity || 0);
+                  const isOutOfStock = remainingStock <= 0;
+                  const isLowStock = remainingStock > 0 && remainingStock < 10;
+                  
+                  // Strike-through list price calculation for premium aesthetic (MRP vs Sale Price)
+                  const mockListPrice = med.price * 1.25;
+                  const isAdded = addedItems[med.id];
 
-                return (
-                  <div
-                    key={med.id}
-                    className="group bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden flex flex-col shadow-sm hover:shadow-lg transition-all"
-                  >
-                    {/* Image / Icon container */}
-                    <div className="relative h-48 bg-surface-container-low p-md overflow-hidden flex items-center justify-center text-outline">
-                      {med.image ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={med.image}
-                          alt={med.name}
-                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
-                        />
-                      ) : (
-                        <span className="material-symbols-outlined text-[64px]">medication</span>
-                      )}
-                      
-                      <span className="absolute top-3 left-3 bg-surface-variant text-on-surface-variant font-label-sm text-label-sm px-2.5 py-1 rounded-full border border-outline-variant shadow-sm uppercase font-bold tracking-wider">
-                        {med.category}
-                      </span>
-                    </div>
-
-                    <div className="p-lg flex flex-col flex-grow">
-                      <div className="flex justify-between items-start mb-sm gap-2">
-                        <h3 className="font-headline-md text-body-lg font-bold text-on-surface truncate" title={med.name}>
-                          {med.name}
-                        </h3>
-                        
-                        {isOutOfStock ? (
-                          <span className="flex items-center gap-1 text-[#ba1a1a] font-label-sm text-label-sm bg-[#ffdad6] px-2 py-0.5 rounded shrink-0">
-                            <span className="material-symbols-outlined text-sm">inventory_2</span> Sold Out
-                          </span>
-                        ) : isLowStock ? (
-                          <span className="flex items-center gap-1 text-[#b45309] font-label-sm text-label-sm bg-[#fef3c7] px-2 py-0.5 rounded shrink-0">
-                            <span className="material-symbols-outlined text-sm">warning</span> Low Stock
-                          </span>
+                  return (
+                    <div
+                      key={med.id}
+                      className="group bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden flex flex-col shadow-sm hover:shadow-lg transition-all"
+                    >
+                      {/* Image / Icon container */}
+                      <div className="relative h-48 bg-surface-container-low p-md overflow-hidden flex items-center justify-center text-outline">
+                        {med.image ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={med.image}
+                            alt={med.name}
+                            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                          />
                         ) : (
-                          <span className="flex items-center gap-1 text-[#1d804e] font-label-sm text-label-sm bg-[#e7f3ec] px-2 py-0.5 rounded shrink-0">
-                            <span className="material-symbols-outlined text-sm">check_circle</span> In Stock
-                          </span>
+                          <span className="material-symbols-outlined text-[64px]">medication</span>
                         )}
+                        
+                        <span className="absolute top-3 left-3 bg-surface-variant text-on-surface-variant font-label-sm text-label-sm px-2.5 py-1 rounded-full border border-outline-variant shadow-sm uppercase font-bold tracking-wider">
+                          {med.category}
+                        </span>
                       </div>
 
-                      <p className="font-body-sm text-body-sm text-on-surface-variant mb-lg line-clamp-2">
-                        {med.description || "Clinically certified medical formulation for pharmacy distribution."}
-                      </p>
-
-                      <div className="mt-auto flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <span className="font-label-sm text-label-sm text-on-surface-variant line-through">
-                            ₹{mockListPrice.toFixed(2)}
-                          </span>
-                          <span className="font-headline-md text-headline-md text-primary font-bold">
-                            ₹{med.price.toFixed(2)}
-                          </span>
+                      <div className="p-lg flex flex-col flex-grow">
+                        <div className="flex justify-between items-start mb-sm gap-2">
+                          <h3 className="font-headline-md text-body-lg font-bold text-on-surface truncate" title={med.name}>
+                            {med.name}
+                          </h3>
+                          
+                          {isOutOfStock ? (
+                            <span className="flex items-center gap-1 text-[#ba1a1a] font-label-sm text-label-sm bg-[#ffdad6] px-2 py-0.5 rounded shrink-0">
+                              <span className="material-symbols-outlined text-sm">inventory_2</span> Sold Out
+                            </span>
+                          ) : isLowStock ? (
+                            <span className="flex items-center gap-1 text-[#b45309] font-label-sm text-label-sm bg-[#fef3c7] px-2 py-0.5 rounded shrink-0">
+                              <span className="material-symbols-outlined text-sm">warning</span> Low Stock
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-[#1d804e] font-label-sm text-label-sm bg-[#e7f3ec] px-2 py-0.5 rounded shrink-0">
+                              <span className="material-symbols-outlined text-sm">check_circle</span> In Stock
+                            </span>
+                          )}
                         </div>
 
-                        <button
-                          onClick={() => handleAddToCart(med)}
-                          disabled={isOutOfStock}
-                          className={`px-lg py-sm rounded-xl font-label-md text-label-md flex items-center gap-2 transition-all active:scale-95 shadow-md ${
-                            isAdded 
-                              ? "bg-[#1d804e] text-on-primary" 
-                              : "bg-primary hover:bg-primary-container text-on-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-sm">
-                            {isAdded ? "done" : "add_shopping_cart"}
-                          </span>
-                          <span>{isAdded ? "Added" : "Add"}</span>
-                        </button>
+                        <p className="font-body-sm text-body-sm text-on-surface-variant mb-lg line-clamp-2">
+                          {med.description || "Clinically certified medical formulation for pharmacy distribution."}
+                        </p>
+
+                        <div className="mt-auto flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="font-label-sm text-label-sm text-on-surface-variant line-through">
+                              ₹{mockListPrice.toFixed(2)}
+                            </span>
+                            <span className="font-headline-md text-headline-md text-primary font-bold">
+                              ₹{med.price.toFixed(2)}
+                            </span>
+                          </div>
+
+                          <button
+                            onClick={() => handleAddToCart(med)}
+                            disabled={isOutOfStock}
+                            className={`px-lg py-sm rounded-xl font-label-md text-label-md flex items-center gap-2 transition-all active:scale-95 shadow-md ${
+                              isAdded 
+                                ? "bg-[#1d804e] text-on-primary" 
+                                : "bg-primary hover:bg-primary-container text-on-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-sm">
+                              {isAdded ? "done" : "add_shopping_cart"}
+                            </span>
+                            <span>{isAdded ? "Added" : "Add"}</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+
+              {/* Pagination controls */}
+              <div className="pt-6 border-t border-outline-variant flex items-center justify-between">
+                <span className="font-label-md text-label-md text-on-surface-variant font-medium">
+                  Showing {totalCount > 0 ? (page - 1) * pageSize + 1 : 0} to {Math.min(page * pageSize, totalCount)} of {totalCount} medicines
+                </span>
+                <div className="flex gap-xs">
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                    className="px-4 py-2 border border-outline-variant rounded-lg text-label-md font-label-md hover:bg-surface-container-low transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                    Previous
+                  </button>
+                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                    className="px-4 py-2 bg-[#003d9b] text-white rounded-lg text-label-md font-label-md hover:opacity-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </section>

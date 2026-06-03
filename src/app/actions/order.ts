@@ -104,22 +104,40 @@ export async function createOrder(input: CreateOrderInput) {
   }
 }
 
-export async function getOrders() {
+export async function getOrders(page?: number, pageSize?: number) {
   try {
-    const orders = await prisma.order.findMany({
-      include: {
-        patient: true,
-        orderMedicines: {
-          include: {
-            medicine: true,
+    const skip = page && pageSize ? (page - 1) * pageSize : undefined;
+    const take = pageSize ? pageSize : undefined;
+
+    const [orders, totalCount] = await Promise.all([
+      prisma.order.findMany({
+        include: {
+          patient: true,
+          orderMedicines: {
+            include: {
+              medicine: true,
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-    return { success: true, data: orders };
+        orderBy: {
+          createdAt: "desc",
+        },
+        skip,
+        take,
+      }),
+      prisma.order.count(),
+    ]);
+
+    return { 
+      success: true, 
+      data: orders,
+      pagination: page && pageSize ? {
+        page,
+        pageSize,
+        totalCount,
+        totalPages: Math.ceil(totalCount / pageSize),
+      } : undefined
+    };
   } catch (error) {
     console.error("Failed to fetch orders:", error);
     const message = error instanceof Error ? error.message : "Failed to fetch orders";
@@ -309,3 +327,24 @@ export async function resendOtpApi(prescriptionNo: string, accessToken: string) 
     return { success: false, error: message };
   }
 }
+
+// Mark order as COMPLETED locally after successful external OTP verification
+export async function completeOrderLocal(prescriptionNo: string) {
+  try {
+    const localOrder = await prisma.order.findFirst({
+      where: { prescriptionNumber: prescriptionNo },
+    });
+    if (localOrder) {
+      await prisma.order.update({
+        where: { id: localOrder.id },
+        data: { status: "COMPLETED" },
+      });
+    }
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to update local order status:", error);
+    return { success: false, error: "Failed to update local order status" };
+  }
+}
+

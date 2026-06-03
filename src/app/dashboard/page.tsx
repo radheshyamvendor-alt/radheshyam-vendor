@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import useAuth from "@/hooks/useAuth";
-import { getMedicines, addMedicine, updateMedicine, deleteMedicine, MedicineInput } from "@/app/actions/medicine";
+import { getMedicines, addMedicine, updateMedicine, deleteMedicine, MedicineInput, getInventoryStats } from "@/app/actions/medicine";
 import InventoryDialog from "@/components/dashboard/InventoryDialog";
 import Header from "@/components/dashboard/Header";
 import BottomNav from "@/components/dashboard/BottomNav";
@@ -35,7 +35,7 @@ export default function Dashboard() {
 
   // Pagination state
   const [page, setPage] = useState(1);
-  const pageSize = 5;
+  const pageSize = 10;
 
   // Trigger bar animation on mount
   useEffect(() => {
@@ -43,29 +43,41 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Fetch medicines query
+  // Reset page to 1 on filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [search, category]);
+
+  // Fetch medicines query (server-side paginated)
   const { data: queryResult, isLoading, error } = useQuery({
-    queryKey: ["medicines", search, category],
-    queryFn: () => getMedicines(search, category),
+    queryKey: ["medicines", search, category, page],
+    queryFn: () => getMedicines(search, category, page, pageSize),
+  });
+
+  // Fetch stats separately to keep pagination fast
+  const { data: statsResult } = useQuery({
+    queryKey: ["inventory-stats"],
+    queryFn: () => getInventoryStats(),
   });
 
   const medicines = (queryResult?.success ? (queryResult.data ?? []) : []) as MedicineItem[];
+  const paginatedMedicines = medicines;
+  const totalPages = queryResult?.success ? (queryResult.pagination?.totalPages ?? 1) : 1;
+  const totalCount = queryResult?.success ? (queryResult.pagination?.totalCount ?? 0) : 0;
 
-  // Client-side pagination calculations
-  const paginatedMedicines = medicines.slice((page - 1) * pageSize, page * pageSize);
-  const totalPages = Math.ceil(medicines.length / pageSize) || 1;
+  const inventoryStats = statsResult?.success ? statsResult.data : null;
 
-  // Bento Stats calculation
-  const totalStock = medicines.reduce((acc: number, m: MedicineItem) => acc + m.stock, 0);
-  const lowStockCount = medicines.filter((m: MedicineItem) => m.stock < 10).length;
-  const expiringSoonCount = medicines.filter((m: MedicineItem) => m.stock > 0 && m.stock < 15).length;
-  const activeCategoriesCount = new Set(medicines.map((m: MedicineItem) => m.category)).size;
+  // Bento Stats calculation from server aggregates
+  const totalStock = inventoryStats?.totalStock ?? 0;
+  const lowStockCount = inventoryStats?.lowStockCount ?? 0;
+  const expiringSoonCount = inventoryStats?.expiringSoonCount ?? 0;
+  const activeCategoriesCount = inventoryStats?.activeCategoriesCount ?? 0;
 
   // Category health calculation for donut chart
-  const tabletsStock = medicines.filter((m: MedicineItem) => m.category === "Tablets").reduce((acc: number, m: MedicineItem) => acc + m.stock, 0);
-  const capsulesStock = medicines.filter((m: MedicineItem) => m.category === "Capsules").reduce((acc: number, m: MedicineItem) => acc + m.stock, 0);
-  const syrupsStock = medicines.filter((m: MedicineItem) => m.category === "Syrups").reduce((acc: number, m: MedicineItem) => acc + m.stock, 0);
-  const otherStock = medicines.filter((m: MedicineItem) => m.category !== "Tablets" && m.category !== "Capsules" && m.category !== "Syrups").reduce((acc: number, m: MedicineItem) => acc + m.stock, 0);
+  const tabletsStock = inventoryStats?.tabletsStock ?? 0;
+  const capsulesStock = inventoryStats?.capsulesStock ?? 0;
+  const syrupsStock = inventoryStats?.syrupsStock ?? 0;
+  const otherStock = inventoryStats?.otherStock ?? 0;
   const totalStockVal = tabletsStock + capsulesStock + syrupsStock + otherStock || 1;
 
   // Circle circumference is 2 * PI * r = 2 * 3.14159 * 40 = 251.2
@@ -84,29 +96,27 @@ export default function Dashboard() {
   ];
   const maxCatStock = Math.max(...categoryBars.map(c => c.stock), 1);
 
-  // Live dynamic activity logs
-  const recentLogs = [...medicines]
-    .sort((a: MedicineItem, b: MedicineItem) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 3)
-    .map((med: MedicineItem) => {
-      const timeDiff = Math.abs(new Date().getTime() - new Date(med.updatedAt).getTime());
-      const diffMins = Math.floor(timeDiff / (1000 * 60));
-      let timeText = "Just now";
-      if (diffMins > 0 && diffMins < 60) timeText = `${diffMins}m ago`;
-      else if (diffMins >= 60 && diffMins < 1440) timeText = `${Math.floor(diffMins / 60)}h ago`;
-      else if (diffMins >= 1440) timeText = `${Math.floor(diffMins / 1440)}d ago`;
+  // Live dynamic activity logs from server
+  const recentLogs = (inventoryStats?.recentUpdates ?? []).map((med: any) => {
+    const timeDiff = Math.abs(new Date().getTime() - new Date(med.updatedAt).getTime());
+    const diffMins = Math.floor(timeDiff / (1000 * 60));
+    let timeText = "Just now";
+    if (diffMins > 0 && diffMins < 60) timeText = `${diffMins}m ago`;
+    else if (diffMins >= 60 && diffMins < 1440) timeText = `${Math.floor(diffMins / 60)}h ago`;
+    else if (diffMins >= 1440) timeText = `${Math.floor(diffMins / 1440)}d ago`;
 
-      if (med.stock < 10) {
-        return { type: "alert", title: `Alert: ${med.name}`, description: `Stock level below threshold (${med.stock} units left)`, time: timeText };
-      }
-      return { type: "restock", title: `Restock: ${med.name}`, description: `Stock level updated to ${med.stock} units`, time: timeText };
-    });
+    if (med.stock < 10) {
+      return { type: "alert", title: `Alert: ${med.name}`, description: `Stock level below threshold (${med.stock} units left)`, time: timeText };
+    }
+    return { type: "restock", title: `Restock: ${med.name}`, description: `Stock level updated to ${med.stock} units`, time: timeText };
+  });
 
   // Mutations
   const addMutation = useMutation({
     mutationFn: (newMed: MedicineInput) => addMedicine(newMed),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["medicines"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory-stats"] });
       queryClient.invalidateQueries({ queryKey: ["catalog-medicines"] });
     },
   });
@@ -115,6 +125,7 @@ export default function Dashboard() {
     mutationFn: ({ id, input }: { id: string; input: MedicineInput }) => updateMedicine(id, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["medicines"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory-stats"] });
       queryClient.invalidateQueries({ queryKey: ["catalog-medicines"] });
     },
   });
@@ -123,6 +134,7 @@ export default function Dashboard() {
     mutationFn: (id: string) => deleteMedicine(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["medicines"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory-stats"] });
       queryClient.invalidateQueries({ queryKey: ["catalog-medicines"] });
     },
   });
@@ -620,7 +632,7 @@ export default function Dashboard() {
           {/* Pagination */}
           <div className="p-lg border-t border-outline-variant flex items-center justify-between">
             <span className="font-label-md text-label-md text-on-surface-variant font-medium">
-              Showing {medicines.length > 0 ? (page - 1) * pageSize + 1 : 0} to {Math.min(page * pageSize, medicines.length)} of {medicines.length} medicines
+              Showing {totalCount > 0 ? (page - 1) * pageSize + 1 : 0} to {Math.min(page * pageSize, totalCount)} of {totalCount} medicines
             </span>
             <div className="flex gap-xs">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
