@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import axios from "axios";
+import { Prisma } from "@prisma/client";
 
 export interface OrderItemInput {
   medicineId: string;
@@ -26,7 +27,7 @@ export interface CreateOrderInput {
 
 export async function createOrder(input: CreateOrderInput) {
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Create or update patient
       const patient = await tx.patient.upsert({
         where: { prescriptionNumber: input.prescriptionNumber },
