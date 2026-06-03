@@ -8,7 +8,7 @@ interface CartBarProps {
 }
 
 export default function CartBar({ onCheckout }: CartBarProps) {
-  const { cart, totalPrice, totalItems, updateQuantity, removeFromCart } = useCart();
+  const { cart, totalPrice, totalItems, updateQuantity, removeFromCart, clearCart } = useCart();
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (totalItems === 0) return null;
@@ -91,14 +91,14 @@ export default function CartBar({ onCheckout }: CartBarProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            {!isExpanded && (
-              <button
-                onClick={() => setIsExpanded(true)}
-                className="px-3 py-2 text-xs font-semibold text-primary hover:underline"
-              >
-                Edit
-              </button>
-            )}
+            <button
+              onClick={clearCart}
+              className="w-10 h-10 flex items-center justify-center text-error hover:bg-error-container/10 rounded-full active:scale-90 transition-transform mr-1"
+              title="Clear cart & prescription details"
+              type="button"
+            >
+              <span className="material-symbols-outlined text-[20px]">delete</span>
+            </button>
             <button
               onClick={onCheckout}
               className="px-5 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md flex items-center justify-center gap-2 shadow-md hover:bg-on-primary-fixed-variant active:scale-[0.97] transition-all"

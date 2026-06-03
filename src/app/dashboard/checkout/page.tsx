@@ -270,7 +270,20 @@ export default function Checkout() {
       <Header />
 
       {/* Wizard content */}
-      <main className="max-w-[650px] mx-auto space-y-6">
+      <main className="max-w-[650px] mx-auto space-y-6 px-4 sm:px-6 md:px-0">
+        {step !== 3 && (
+          <div className="flex items-center pt-2">
+            <Link
+              href="/dashboard/cart"
+              className="inline-flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors text-sm font-semibold group"
+            >
+              <span className="material-symbols-outlined text-[20px] group-hover:-translate-x-0.5 transition-transform">
+                arrow_back
+              </span>
+              <span>Back to Cart</span>
+            </Link>
+          </div>
+        )}
 
         {errorMsg && (
           <div className="p-3 bg-error-container/30 border border-error text-error text-sm rounded-xl flex items-center gap-2">
@@ -385,32 +398,7 @@ export default function Checkout() {
                   />
                 </div>
 
-                {/* Gender & Age */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-xs text-on-surface-variant font-semibold ml-1">Gender *</label>
-                    <select
-                      value={patientGender}
-                      onChange={(e) => setPatientGender(e.target.value)}
-                      className="w-full px-3 py-2 bg-surface-container-lowest border border-outline-variant rounded-xl focus:border-primary outline-none transition-all text-sm text-on-surface font-medium"
-                    >
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-on-surface-variant font-semibold ml-1">Age *</label>
-                    <input
-                      value={patientAge}
-                      onChange={(e) => setPatientAge(Number(e.target.value))}
-                      className="w-full px-3 py-2 bg-surface-container-lowest border border-outline-variant rounded-xl focus:border-primary outline-none transition-all text-sm text-on-surface font-medium"
-                      type="number"
-                      min="1"
-                      required
-                    />
-                  </div>
-                </div>
+
 
                 {/* Patient Address */}
                 <div className="space-y-1 sm:col-span-2">

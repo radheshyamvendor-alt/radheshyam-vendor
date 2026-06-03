@@ -70,8 +70,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateQuantity = (id: string, quantity: number) => {
-    setCart((prevCart) =>
-      prevCart
+    setCart((prevCart) => {
+      const updated = prevCart
         .map((i) => {
           if (i.id === id) {
             const validQty = Math.max(1, Math.min(quantity, i.stock));
@@ -79,12 +79,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           }
           return i;
         })
-        .filter((i) => i.quantity > 0)
-    );
+        .filter((i) => i.quantity > 0);
+      if (updated.length === 0 && typeof window !== "undefined") {
+        localStorage.removeItem("radheshyam_scanned_rx");
+      }
+      return updated;
+    });
   };
 
   const removeFromCart = (id: string) => {
-    setCart((prevCart) => prevCart.filter((i) => i.id !== id));
+    setCart((prevCart) => {
+      const updated = prevCart.filter((i) => i.id !== id);
+      if (updated.length === 0 && typeof window !== "undefined") {
+        localStorage.removeItem("radheshyam_scanned_rx");
+      }
+      return updated;
+    });
   };
 
   const clearCart = () => {

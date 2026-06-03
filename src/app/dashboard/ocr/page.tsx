@@ -210,10 +210,6 @@ export default function OcrPage() {
                     <span className="font-semibold text-on-surface">{prescriptionNumber}</span>
                   </div>
                   <div>
-                    <span className="text-xs text-outline block">Age / Gender</span>
-                    <span className="font-semibold text-on-surface">{patientInfo?.age} years • {patientInfo?.gender}</span>
-                  </div>
-                  <div>
                     <span className="text-xs text-outline block">Mobile Number</span>
                     <span className="font-semibold text-on-surface">{patientInfo?.mobile}</span>
                   </div>
