@@ -24,7 +24,7 @@ export interface CreatedOrder {
 }
 
 export default function Checkout() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const { cart, clearCart } = useCart();
   const queryClient = useQueryClient();
 
@@ -257,6 +257,7 @@ export default function Checkout() {
         medicineId: i.medicineId,
         quantity: i.quantity,
       })),
+      chemistEmail: user?.email || undefined,
     };
 
     createOrderMutation.mutate(payload);

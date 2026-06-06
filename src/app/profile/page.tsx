@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import useAuth from "@/hooks/useAuth";
 import Header from "@/components/dashboard/Header";
 import BottomNav from "@/components/dashboard/BottomNav";
+import { LogOut } from "lucide-react";
 
 export default function Profile() {
   const { user, logout, refreshProfile } = useAuth();
@@ -48,6 +49,16 @@ export default function Profile() {
               <span className="text-xs text-outline block font-medium">Location</span>
               <span className="font-semibold text-on-surface text-base">{user?.location}</span>
             </div>
+          </div>
+
+          <div className="pt-6 border-t border-outline-variant flex justify-end">
+            <button
+              onClick={logout}
+              className="w-full sm:w-auto px-6 py-3 bg-error text-on-error hover:bg-error/90 active:scale-[0.98] transition-all rounded-xl font-label-md text-label-md flex items-center justify-center gap-2 shadow-md cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out</span>
+            </button>
           </div>
         </div>
       </main>

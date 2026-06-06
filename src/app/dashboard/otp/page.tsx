@@ -54,14 +54,16 @@ export default function OTPVerificationPage() {
 
   // Fetch Dashboard Stats
   const { data, isLoading: isStatsLoading, error: statsError } = useQuery({
-    queryKey: ["dashboard-stats"],
-    queryFn: () => getDashboardStats(),
+    queryKey: ["dashboard-stats", user?.email],
+    queryFn: () => getDashboardStats(user?.email),
+    enabled: user !== null,
   });
 
   // Fetch paginated orders (server-side pagination of 10 items)
   const { data: ordersResult, isLoading: isOrdersLoading, error: ordersError } = useQuery({
-    queryKey: ["orders", page],
-    queryFn: () => getOrders(page, pageSize),
+    queryKey: ["orders", page, user?.email],
+    queryFn: () => getOrders(page, pageSize, user?.email),
+    enabled: user !== null,
   });
 
   // Start Delivery mutation

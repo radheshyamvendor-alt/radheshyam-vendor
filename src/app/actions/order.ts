@@ -22,6 +22,7 @@ export interface CreateOrderInput {
   prescriptionNumber: string;
   patient: PatientInput;
   items: OrderItemInput[];
+  chemistEmail?: string;
 }
 
 export async function createOrder(input: CreateOrderInput) {
@@ -64,6 +65,7 @@ export async function createOrder(input: CreateOrderInput) {
           prescriptionNumber: input.prescriptionNumber,
           patientId: patient.id,
           status: "PENDING",
+          chemistEmail: input.chemistEmail || null,
         },
       });
 
@@ -104,13 +106,19 @@ export async function createOrder(input: CreateOrderInput) {
   }
 }
 
-export async function getOrders(page?: number, pageSize?: number) {
+export async function getOrders(page?: number, pageSize?: number, chemistEmail?: string) {
   try {
     const skip = page && pageSize ? (page - 1) * pageSize : undefined;
     const take = pageSize ? pageSize : undefined;
 
+    const where: any = {};
+    if (chemistEmail) {
+      where.chemistEmail = chemistEmail;
+    }
+
     const [orders, totalCount] = await Promise.all([
       prisma.order.findMany({
+        where,
         include: {
           patient: true,
           orderMedicines: {
@@ -125,7 +133,7 @@ export async function getOrders(page?: number, pageSize?: number) {
         skip,
         take,
       }),
-      prisma.order.count(),
+      prisma.order.count({ where }),
     ]);
 
     return { 
@@ -145,37 +153,51 @@ export async function getOrders(page?: number, pageSize?: number) {
   }
 }
 
-export async function getDashboardStats() {
+export async function getDashboardStats(chemistEmail?: string) {
   try {
     const totalMedicines = await prisma.medicine.count();
     
     // Count orders created today
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
-    const ordersToday = await prisma.order.count({
-      where: {
-        createdAt: {
-          gte: startOfToday,
-        },
+
+    const whereToday: any = {
+      createdAt: {
+        gte: startOfToday,
       },
+    };
+    const wherePending: any = {
+      status: {
+        in: ["PENDING", "SHIPPED"],
+      },
+    };
+    const whereCompleted: any = {
+      status: "COMPLETED",
+    };
+    const whereRecent: any = {};
+
+    if (chemistEmail) {
+      whereToday.chemistEmail = chemistEmail;
+      wherePending.chemistEmail = chemistEmail;
+      whereCompleted.chemistEmail = chemistEmail;
+      whereRecent.chemistEmail = chemistEmail;
+    }
+
+    const ordersToday = await prisma.order.count({
+      where: whereToday,
     });
 
     const pendingDeliveries = await prisma.order.count({
-      where: {
-        status: {
-          in: ["PENDING", "SHIPPED"],
-        },
-      },
+      where: wherePending,
     });
 
     const completedDeliveries = await prisma.order.count({
-      where: {
-        status: "COMPLETED",
-      },
+      where: whereCompleted,
     });
 
     // Fetch recent orders
     const recentOrders = await prisma.order.findMany({
+      where: whereRecent,
       include: {
         patient: true,
         orderMedicines: {

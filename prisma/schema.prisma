@@ -42,6 +42,7 @@ model Order {
   patient            Patient?        @relation(fields: [patientId], references: [id])
   status             String          // PENDING, SHIPPED, COMPLETED
   otp                String?
+  chemistEmail       String?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
   orderMedicines     OrderMedicine[]
