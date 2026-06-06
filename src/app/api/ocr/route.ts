@@ -1,16 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { Jimp } from "jimp";
-import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
-import { createWorker } from "tesseract.js";
-import path from "path";
-
-// Point PDF.js worker to the actual worker file on disk
-// This prevents the "Cannot find module pdf.worker.mjs" error in Next.js server context
-pdfjs.GlobalWorkerOptions.workerSrc = path.join(
-  process.cwd(),
-  "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
-);
 
 // Normalization function to remove punctuation, spaces, and convert to lowercase
 function normalizeString(str: string): string {
@@ -104,89 +93,22 @@ function containsIgnoreCase(text: string, search: string | number | null | undef
   return textStr.includes(searchStr);
 }
 
-// OCR preprocessing using Jimp: grayscale, contrast, sharpening, noise reduction
-async function preprocessImage(imageBuffer: Buffer): Promise<Buffer> {
-  const image = await Jimp.read(imageBuffer);
-  
-  // 1. Grayscale
-  image.greyscale();
-  
-  // 2. Contrast Enhancement (takes a value between -1 and 1)
-  image.contrast(0.2); 
-  
-  // 3. Sharpening (convolve kernel)
-  image.convolute([
-    [0, -1, 0],
-    [-1, 5, -1],
-    [0, -1, 0]
-  ]);
-  
-  return await image.getBuffer("image/png");
+// Helper to check if a phone number exists in raw text by comparing digit-only representations
+function containsPhoneIgnoreCase(text: string, search: string | number | null | undefined): boolean {
+  if (search === null || search === undefined) return false;
+  const searchDigits = String(search).replace(/\D/g, "");
+  const textDigits = text.replace(/\D/g, "");
+  if (!searchDigits) return false;
+  return textDigits.includes(searchDigits);
 }
 
-// Extract images from scanned PDF pages
-async function extractImagesFromPdf(pdfBuffer: Buffer): Promise<Buffer[]> {
-  const doc = await pdfjs.getDocument({
-    data: new Uint8Array(pdfBuffer),
-    useSystemFonts: false,
-    disableFontFace: true,
-  }).promise;
-
-  const images: Buffer[] = [];
-
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const ops = await page.getOperatorList();
-    
-    for (let j = 0; j < ops.fnArray.length; j++) {
-      const fn = ops.fnArray[j];
-      if (fn === pdfjs.OPS.paintImageXObject || fn === pdfjs.OPS.paintInlineImageXObject) {
-        const imgKey = ops.argsArray[j][0];
-        const img = await new Promise<any>((resolve) => {
-          page.objs.get(imgKey, (obj: any) => resolve(obj));
-        });
-        
-        if (img && img.width && img.height && img.data) {
-          const jimpImage = new Jimp({ width: img.width, height: img.height });
-          const totalPixels = img.width * img.height;
-          const targetData = jimpImage.bitmap.data;
-          
-          if (img.data.length === totalPixels * 4) {
-            // RGBA
-            Buffer.from(img.data).copy(targetData);
-          } else if (img.data.length === totalPixels * 3) {
-            // RGB
-            let srcIdx = 0;
-            let dstIdx = 0;
-            for (let p = 0; p < totalPixels; p++) {
-              targetData[dstIdx] = img.data[srcIdx];
-              targetData[dstIdx + 1] = img.data[srcIdx + 1];
-              targetData[dstIdx + 2] = img.data[srcIdx + 2];
-              targetData[dstIdx + 3] = 255;
-              srcIdx += 3;
-              dstIdx += 4;
-            }
-          } else if (img.data.length === totalPixels) {
-            // Grayscale
-            let dstIdx = 0;
-            for (let p = 0; p < totalPixels; p++) {
-              const val = img.data[p];
-              targetData[dstIdx] = val;
-              targetData[dstIdx + 1] = val;
-              targetData[dstIdx + 2] = val;
-              targetData[dstIdx + 3] = 255;
-              dstIdx += 4;
-            }
-          }
-          
-          const buffer = await jimpImage.getBuffer("image/png");
-          images.push(buffer);
-        }
-      }
-    }
-  }
-  
-  return images;
+// Helper to check if a prescription number exists in raw text by comparing alphanumeric-only representations
+function containsAlphanumericIgnoreCase(text: string, search: string | number | null | undefined): boolean {
+  if (search === null || search === undefined) return false;
+  const searchClean = String(search).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const textClean = text.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!searchClean) return false;
+  return textClean.includes(searchClean);
 }
 
 // Clean list/form keywords from OCR lines for matching
@@ -207,7 +129,6 @@ function extractPatientInfo(text: string) {
   let gender: string | null = null;
   let age: number | null = null;
 
-  // 1. Prescription Number
   const rxNoPatterns = [
     /(?:rx\s*no|rx|prescription\s*no|prescription|sr\s*no|serial\s*no)[:.\s-]*([a-zA-Z0-9-]+)/i,
     /(?:sr\.?\s*no)[:.\s-]*([a-zA-Z0-9-]+)/i
@@ -220,7 +141,6 @@ function extractPatientInfo(text: string) {
     }
   }
 
-  // 2. Patient Name
   const namePatterns = [
     /(?:patient\s*name|name)[:.\s-]*([a-zA-Z\s.]+)/i
   ];
@@ -236,7 +156,6 @@ function extractPatientInfo(text: string) {
     }
   }
 
-  // 3. Address
   const addressPatterns = [
     /(?:patient\s*address|address)[:.\s-]*([^\n\r]+)/i
   ];
@@ -248,7 +167,6 @@ function extractPatientInfo(text: string) {
     }
   }
 
-  // 4. Mobile
   const mobilePatterns = [
     /(?:mobile|phone|contact|tel)[:.\s-]*([0-9\s-]{10,15})/i
   ];
@@ -263,7 +181,6 @@ function extractPatientInfo(text: string) {
     }
   }
 
-  // 5. Gender
   const genderPatterns = [
     /\b(?:sex|gender)[:.\s-]*([a-zA-Z]+)/i
   ];
@@ -278,7 +195,6 @@ function extractPatientInfo(text: string) {
     }
   }
 
-  // 6. Age
   const agePatterns = [
     /\bage[:.\s-]*([0-9]+)\b/i
   ];
@@ -331,65 +247,61 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 });
     }
 
-    const fileBytes = await file.arrayBuffer();
+    const serviceUrl = process.env.PADDLEOCR_SERVICE_URL;
+    if (!serviceUrl) {
+      console.error("PADDLEOCR_SERVICE_URL is not defined in environment variables");
+      return NextResponse.json({ success: false, error: "OCR service unavailable" }, { status: 500 });
+    }
+
     let rawText = "";
 
-    // 1. Text / PDF Extraction
-    if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-      const doc = await pdfjs.getDocument({
-        data: new Uint8Array(fileBytes),
-        useSystemFonts: false,
-        disableFontFace: true,
-      }).promise;
+    // Forward file to the external PaddleOCR service
+    const ocrFormData = new FormData();
+    ocrFormData.append("file", file);
 
-      let textLayer = "";
-      for (let i = 1; i <= doc.numPages; i++) {
-        const page = await doc.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item: any) => item.str).join(" ");
-        textLayer += pageText + "\n";
+    try {
+      const ocrResponse = await fetch(serviceUrl, {
+        method: "POST",
+        body: ocrFormData,
+      });
+
+      if (!ocrResponse.ok) {
+        throw new Error(`PaddleOCR service returned status ${ocrResponse.status}`);
       }
 
-      if (textLayer.trim().length > 100) {
-        rawText = textLayer;
-      } else {
-        // Scanned PDF: Extract images and run Tesseract OCR
-        const pageImages = await extractImagesFromPdf(Buffer.from(fileBytes));
-        const worker = await createWorker("eng", 1, { cachePath: "/tmp" });
-        
-        let ocrText = "";
-        for (const imgBuffer of pageImages) {
-          const preprocessed = await preprocessImage(imgBuffer);
-          const { data: { text } } = await worker.recognize(preprocessed);
-          ocrText += text + "\n";
-        }
-        await worker.terminate();
-        rawText = ocrText;
+      const ocrResult = await ocrResponse.json();
+      if (!ocrResult.success) {
+        throw new Error(ocrResult.error || "PaddleOCR service failed");
       }
-    } else {
-      // Direct Image: Run Tesseract OCR
-      const preprocessed = await preprocessImage(Buffer.from(fileBytes));
-      const worker = await createWorker("eng", 1, { cachePath: "/tmp" });
-      const { data: { text } } = await worker.recognize(preprocessed);
-      await worker.terminate();
-      rawText = text;
+
+      rawText = ocrResult.text || "";
+    } catch (err) {
+      console.error("External PaddleOCR request failed:", err);
+      return NextResponse.json({ success: false, error: "OCR service unavailable" }, { status: 500 });
     }
 
     rawText = rawText.trim();
     if (!rawText) {
-      return NextResponse.json({ success: false, error: "Unable to extract text from prescription" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "Unable to scan prescription" }, { status: 500 });
     }
+
+    const lines = rawText.split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => ({
+        text: line,
+        confidence: 1.0
+      }));
 
     // 2. Extraction Engine
     const { prescriptionNumber, patient } = extractPatientInfo(rawText);
 
     // 3. Medicine Matching against Database
     const allDbMedicines = await prisma.medicine.findMany();
-    const lines = rawText.split(/\r?\n/);
     const verifiedMedicines: any[] = [];
 
-    for (const line of lines) {
-      const cleaned = cleanOcrLine(line);
+    for (const ocrLine of lines) {
+      const cleaned = cleanOcrLine(ocrLine.text);
       if (cleaned.length < 5) continue; // Skip lines that are too short to be medicines
 
       let bestMatch: any = null;
@@ -403,10 +315,9 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Similarity Score serves as our Confidence Score. Accept only matches >= 85% (0.85).
-      // Since 0.85 >= 0.70, it automatically satisfies confidence >= 0.70.
+      // Similarity Score serves as our fuzzy matching score. Accept only matches >= 85% (0.85).
       if (highestScore >= 0.85 && bestMatch) {
-        const qty = extractQuantity(line);
+        const qty = extractQuantity(ocrLine.text);
         
         // Prevent duplicate items
         if (!verifiedMedicines.some((item) => item.id === bestMatch.id)) {
@@ -416,7 +327,7 @@ export async function POST(req: NextRequest) {
             price: bestMatch.price,
             stock: bestMatch.stock,
             quantity: qty,
-            confidence: highestScore
+            confidence: ocrLine.confidence
           });
         }
       }
@@ -424,27 +335,38 @@ export async function POST(req: NextRequest) {
 
     // 4. Validation Layer: Ensure all returned values exist in OCR text (if not, set to null)
     let finalRxNo = prescriptionNumber;
-    if (finalRxNo && !containsIgnoreCase(rawText, finalRxNo)) {
+    if (finalRxNo && !containsAlphanumericIgnoreCase(rawText, finalRxNo)) {
       finalRxNo = null;
     }
 
     const finalPatient = {
       name: patient.name && containsIgnoreCase(rawText, patient.name) ? patient.name : null,
       address: patient.address && containsIgnoreCase(rawText, patient.address) ? patient.address : null,
-      mobile: patient.mobile && containsIgnoreCase(rawText, patient.mobile) ? patient.mobile : null,
-      gender: patient.gender && containsIgnoreCase(rawText, patient.gender) ? patient.gender : null,
+      mobile: patient.mobile && containsPhoneIgnoreCase(rawText, patient.mobile) ? patient.mobile : null,
+      gender: patient.gender && (
+        containsIgnoreCase(rawText, patient.gender) ||
+        (patient.gender === "Male" && /\b(?:sex|gender)[:.\s-]*m\b/i.test(rawText)) ||
+        (patient.gender === "Female" && /\b(?:sex|gender)[:.\s-]*f\b/i.test(rawText))
+      ) ? patient.gender : null,
       age: patient.age && containsIgnoreCase(rawText, patient.age) ? patient.age : null
     };
+
+    const patientObj: Record<string, any> = {};
+    if (finalPatient.name) patientObj.name = finalPatient.name;
+    if (finalPatient.address) patientObj.address = finalPatient.address;
+    if (finalPatient.mobile) patientObj.mobile = finalPatient.mobile;
+    if (finalPatient.gender) patientObj.gender = finalPatient.gender;
+    if (finalPatient.age) patientObj.age = finalPatient.age;
 
     // Construct response matching expected frontend structure and root structure
     const responsePayload = {
       success: true,
-      prescriptionNumber: finalRxNo,
-      patient: finalPatient,
+      prescriptionNumber: finalRxNo || "",
+      patient: patientObj,
       medicines: verifiedMedicines,
       data: {
-        prescriptionNumber: finalRxNo,
-        patient: finalPatient,
+        prescriptionNumber: finalRxNo || "",
+        patient: patientObj,
         medicines: verifiedMedicines
       }
     };
@@ -452,7 +374,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(responsePayload);
   } catch (error) {
     console.error("OCR API route error:", error);
-    const message = error instanceof Error ? error.message : "Unable to extract text from prescription";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Unable to scan prescription" },
+      { status: 500 }
+    );
   }
 }
