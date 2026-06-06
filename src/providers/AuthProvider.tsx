@@ -205,6 +205,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         throw new Error(response.message || "Login failed");
       }
+    } catch (err: any) {
+      const serverMessage = err?.response?.data?.message || err?.response?.data?.error || err?.message;
+      throw new Error(serverMessage || "Login failed");
     } finally {
       setIsLoading(false);
     }
@@ -217,6 +220,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!response.success) {
         throw new Error(response.message || "Registration failed");
       }
+    } catch (err: any) {
+      const serverMessage = err?.response?.data?.message || err?.response?.data?.error || err?.message;
+      throw new Error(serverMessage || "Registration failed");
     } finally {
       setIsLoading(false);
     }
@@ -236,6 +242,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!response.success) {
         throw new Error(response.message || "Forgot password failed");
       }
+    } catch (err: any) {
+      const serverMessage = err?.response?.data?.message || err?.response?.data?.error || err?.message;
+      throw new Error(serverMessage || "Forgot password failed");
     } finally {
       setIsLoading(false);
     }
@@ -248,6 +257,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!response.success) {
         throw new Error(response.message || "Reset password failed");
       }
+    } catch (err: any) {
+      const serverMessage = err?.response?.data?.message || err?.response?.data?.error || err?.message;
+      throw new Error(serverMessage || "Reset password failed");
     } finally {
       setIsLoading(false);
     }

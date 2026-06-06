@@ -26,8 +26,17 @@ export default function Dashboard() {
   const { logout } = useAuth();
   const queryClient = useQueryClient();
 
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [category, setCategory] = useState("All");
+
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchInput]);
   const [animateBars, setAnimateBars] = useState(false);
 
   // Dialog state
@@ -51,12 +60,12 @@ export default function Dashboard() {
   // Reset page to 1 on filter changes
   useEffect(() => {
     setPage(1);
-  }, [search, category]);
+  }, [debouncedSearch, category]);
 
   // Fetch medicines query (server-side paginated)
   const { data: queryResult, isLoading, error } = useQuery({
-    queryKey: ["medicines", search, category, page],
-    queryFn: () => getMedicines(search, category, page, pageSize),
+    queryKey: ["medicines", debouncedSearch, category, page],
+    queryFn: () => getMedicines(debouncedSearch, category, page, pageSize),
   });
 
   // Fetch stats separately to keep pagination fast
@@ -326,8 +335,8 @@ export default function Dashboard() {
           <div className="relative w-full">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">search</span>
             <input
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full pl-10 pr-4 h-11 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm outline-none focus:border-[#003d9b] transition-all text-on-surface"
               placeholder="Search medicines..."
               type="text"
@@ -527,8 +536,8 @@ export default function Dashboard() {
               <div className="relative w-full">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
                 <input
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   className="w-full pl-10 pr-4 h-11 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all text-body-md outline-none text-on-surface"
                   placeholder="Search by medicine name..."
                   type="text"

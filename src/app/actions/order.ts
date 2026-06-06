@@ -106,7 +106,7 @@ export async function createOrder(input: CreateOrderInput) {
   }
 }
 
-export async function getOrders(page?: number, pageSize?: number, chemistEmail?: string) {
+export async function getOrders(page?: number, pageSize?: number, chemistEmail?: string, search?: string) {
   try {
     const skip = page && pageSize ? (page - 1) * pageSize : undefined;
     const take = pageSize ? pageSize : undefined;
@@ -114,6 +114,33 @@ export async function getOrders(page?: number, pageSize?: number, chemistEmail?:
     const where: any = {};
     if (chemistEmail) {
       where.chemistEmail = chemistEmail;
+    }
+
+    if (search) {
+      where.OR = [
+        {
+          prescriptionNumber: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          patient: {
+            name: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          patient: {
+            mobile: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+        },
+      ];
     }
 
     const [orders, totalCount] = await Promise.all([

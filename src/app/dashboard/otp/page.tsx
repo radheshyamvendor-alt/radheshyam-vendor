@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import useAuth from "@/hooks/useAuth";
 import { getDashboardStats, startDelivery, getOrders, deleteOrder, updateOrder } from "@/app/actions/order";
@@ -52,6 +52,23 @@ export default function OTPVerificationPage() {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
+  // Search states
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchInput]);
+
+  // Reset page to 1 on search change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
   // Fetch Dashboard Stats
   const { data, isLoading: isStatsLoading, error: statsError } = useQuery({
     queryKey: ["dashboard-stats", user?.email],
@@ -61,8 +78,8 @@ export default function OTPVerificationPage() {
 
   // Fetch paginated orders (server-side pagination of 10 items)
   const { data: ordersResult, isLoading: isOrdersLoading, error: ordersError } = useQuery({
-    queryKey: ["orders", page, user?.email],
-    queryFn: () => getOrders(page, pageSize, user?.email),
+    queryKey: ["orders", page, user?.email, debouncedSearch],
+    queryFn: () => getOrders(page, pageSize, user?.email, debouncedSearch),
     enabled: user !== null,
   });
 
@@ -179,7 +196,7 @@ export default function OTPVerificationPage() {
         </div>
 
         {/* Loading Spinner */}
-        {isLoading ? (
+        {isStatsLoading && !data ? (
           <div className="p-12 flex flex-col items-center justify-center bg-surface-container-lowest border border-outline-variant rounded-xl glass-card">
             <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -187,9 +204,9 @@ export default function OTPVerificationPage() {
             </svg>
             <span className="mt-4 text-on-surface-variant text-sm font-semibold">Updating statistics counts...</span>
           </div>
-        ) : error ? (
+        ) : statsError && !data ? (
           <div className="p-6 text-center text-error font-medium bg-surface-container-lowest border border-outline-variant rounded-xl glass-card">
-            Failed to sync dashboard statistics: {(error as Error).message || "Unknown error"}
+            Failed to sync dashboard statistics: {(statsError as Error).message || "Unknown error"}
           </div>
         ) : (
           <>
@@ -238,16 +255,27 @@ export default function OTPVerificationPage() {
 
             {/* Recent Activity Table */}
             <div className="bg-surface-container-lowest border border-outline-variant shadow-sm rounded-xl overflow-hidden glass-card">
-              <div className="px-6 py-4 border-b border-outline-variant bg-surface-container-lowest flex items-center justify-between">
+              <div className="px-6 py-4 border-b border-outline-variant bg-surface-container-lowest flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h3 className="font-bold text-headline-sm text-on-surface">Recent Orders Queue</h3>
+                <div className="relative w-full md:w-80">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">search</span>
+                  <input
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    className="w-full pl-10 pr-4 h-11 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all text-sm outline-none text-on-surface"
+                    placeholder="Search by Rx, patient, or mobile..."
+                    type="text"
+                  />
+                </div>
               </div>
 
-              {recentOrders.length === 0 ? (
-                <div className="p-12 text-center text-on-surface-variant font-medium">
-                  No orders placed yet. Head over to the Medicine Catalog to create one!
-                </div>
-              ) : (
-                <>
+              <div className={`transition-opacity duration-200 ${isOrdersLoading ? "opacity-60" : "opacity-100"}`}>
+                {recentOrders.length === 0 ? (
+                  <div className="p-12 text-center text-on-surface-variant font-medium">
+                    {searchInput ? "No orders found matching your search." : "No orders placed yet. Head over to the Medicine Catalog to create one!"}
+                  </div>
+                ) : (
+                  <>
                   {/* Table View — shown on Medium screens and up */}
                   <div className="hidden md:block overflow-x-auto">
                     <table className="w-full border-collapse text-left text-sm text-on-surface">
@@ -519,6 +547,7 @@ export default function OTPVerificationPage() {
                   </div>
                 </>
               )}
+              </div>
             </div>
           </>
         )}

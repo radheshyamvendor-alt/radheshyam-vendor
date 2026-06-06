@@ -17,8 +17,17 @@ export default function Catalog() {
   const { addToCart, cart } = useCart();
   const router = useRouter();
 
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
+
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchInput]);
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -28,12 +37,12 @@ export default function Catalog() {
   // Reset page on search or category filter change
   useEffect(() => {
     setPage(1);
-  }, [search, activeCategory]);
+  }, [debouncedSearch, activeCategory]);
 
   // Fetch catalog medicines (server-side paginated)
   const { data: queryResult, isLoading, error } = useQuery({
-    queryKey: ["catalog-medicines", search, activeCategory, page],
-    queryFn: () => getMedicines(search, activeCategory, page, pageSize),
+    queryKey: ["catalog-medicines", debouncedSearch, activeCategory, page],
+    queryFn: () => getMedicines(debouncedSearch, activeCategory, page, pageSize),
   });
 
   const medicines = (queryResult?.success ? (queryResult.data ?? []) : []) as MedicineItem[];
@@ -82,8 +91,8 @@ export default function Catalog() {
           <div className="flex justify-end">
             <div className="relative w-full md:w-96 group">
               <input 
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="w-full h-12 pl-12 pr-4 rounded-xl border border-outline bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:ring-opacity-10 focus:border-primary transition-all outline-none text-on-surface" 
                 placeholder="Search medicines, categories..." 
                 type="text"
