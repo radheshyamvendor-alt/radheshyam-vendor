@@ -20,16 +20,11 @@ export const tokenStorage = {
 
   setRefreshToken(token: string, expirationStr?: string): void {
     if (typeof window === "undefined") return;
-    let expires = "";
-    if (expirationStr) {
-      const date = new Date(expirationStr);
-      expires = `; expires=${date.toUTCString()}`;
-    } else {
-      // Default to 7 days
-      const date = new Date();
-      date.setTime(date.getTime() + 7 * 24 * 60 * 60 * 1000);
-      expires = `; expires=${date.toUTCString()}`;
-    }
+    // Always use a long-lived cookie (7 days) for the refresh token
+    // to prevent it from being deleted when the short-lived access token expires (1 hour).
+    const date = new Date();
+    date.setTime(date.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const expires = `; expires=${date.toUTCString()}`;
     
     // Write cookie with security attributes
     document.cookie = `${AUTH_CONSTANTS.STORAGE_KEYS.REFRESH_TOKEN}=${token}${expires}; path=/; SameSite=Lax; Secure`;

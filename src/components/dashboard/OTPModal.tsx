@@ -21,7 +21,8 @@ export default function OTPModal({
   const accessToken = getLocalAccessToken() || "";
   const queryClient = useQueryClient();
 
-  const [otp, setOtp] = useState("");
+  const [otpValues, setOtpValues] = useState<string[]>(Array(6).fill(""));
+  const otp = otpValues.join("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -86,6 +87,58 @@ export default function OTPModal({
 
   if (!isOpen) return null;
 
+  const handleOtpChange = (value: string, index: number) => {
+    // Only allow digits
+    const cleaned = value.replace(/[^0-9]/g, "");
+    if (!cleaned) {
+      const newValues = [...otpValues];
+      newValues[index] = "";
+      setOtpValues(newValues);
+      return;
+    }
+
+    const newValues = [...otpValues];
+    newValues[index] = cleaned.substring(cleaned.length - 1);
+    setOtpValues(newValues);
+
+    // Focus next input if not the last one
+    if (index < 5) {
+      const nextInput = document.getElementById(`otp-input-${index + 1}`);
+      nextInput?.focus();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (e.key === "Backspace") {
+      const newValues = [...otpValues];
+      if (otpValues[index]) {
+        newValues[index] = "";
+        setOtpValues(newValues);
+      } else if (index > 0) {
+        newValues[index - 1] = "";
+        setOtpValues(newValues);
+        const prevInput = document.getElementById(`otp-input-${index - 1}`);
+        prevInput?.focus();
+      }
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text").replace(/[^0-9]/g, "").substring(0, 6);
+    if (pastedData) {
+      const newValues = Array(6).fill("");
+      for (let i = 0; i < pastedData.length; i++) {
+        newValues[i] = pastedData[i];
+      }
+      setOtpValues(newValues);
+      
+      const focusIndex = Math.min(pastedData.length, 5);
+      const targetInput = document.getElementById(`otp-input-${focusIndex}`);
+      targetInput?.focus();
+    }
+  };
+
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -149,21 +202,28 @@ export default function OTPModal({
           </div>
 
           {/* OTP Input */}
-          <div className="space-y-1.5 pt-2">
-            <label className="font-label-md text-label-md text-on-surface-variant block text-center" htmlFor="otp">
+          <div className="space-y-3 pt-2">
+            <label className="font-label-md text-label-md text-on-surface-variant block text-center">
               OTP Verification Code
             </label>
-            <input
-              id="otp"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              className="w-full px-4 py-3 text-center tracking-widest font-bold text-headline-md bg-surface-container-lowest border border-outline-variant rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all placeholder:tracking-normal placeholder:font-normal placeholder:text-sm placeholder:text-outline/60 text-on-surface"
-              placeholder="e.g. 123456"
-              type="text"
-              maxLength={6}
-              required
-              disabled={verifyMutation.isPending}
-            />
+            <div className="flex justify-center gap-2 font-mono" onPaste={handlePaste}>
+              {otpValues.map((val, idx) => (
+                <input
+                  key={idx}
+                  id={`otp-input-${idx}`}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={val}
+                  onChange={(e) => handleOtpChange(e.target.value, idx)}
+                  onKeyDown={(e) => handleKeyDown(e, idx)}
+                  className="w-10 h-12 text-center font-bold text-headline-md bg-surface-container-lowest border border-outline-variant rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all text-on-surface"
+                  maxLength={1}
+                  required
+                  disabled={verifyMutation.isPending}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Actions */}
