@@ -85,48 +85,48 @@ export default function Catalog() {
       {/* Shared Responsive Header */}
       <Header />
 
-      <main className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop py-xl">
+      <main className="max-w-max-width xl:max-w-[1600px] 2xl:max-w-[1760px] mx-auto px-margin-mobile md:px-margin-desktop xl:px-8 py-xl transition-all duration-300">
         {/* Search Section */}
-        <section className="mb-md">
+        <section className="mb-md xl:mb-6">
           <div className="flex justify-end">
-            <div className="relative w-full md:w-96 group">
+            <div className="relative w-full md:w-96 xl:w-80 group">
               <input 
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full h-12 pl-12 pr-4 rounded-xl border border-outline bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:ring-opacity-10 focus:border-primary transition-all outline-none text-on-surface" 
+                className="w-full h-12 xl:h-10 pl-12 xl:pl-10 pr-4 rounded-xl border border-outline bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:ring-opacity-10 focus:border-primary transition-all outline-none text-on-surface text-sm xl:text-xs" 
                 placeholder="Search medicines, categories..." 
                 type="text"
               />
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
+              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-[20px] xl:text-[18px]">search</span>
             </div>
           </div>
         </section>
 
         {/* Category Bento Grid */}
-        <section className="mb-3xl">
-          <div className="flex items-center gap-2 mb-lg">
-            <span className="material-symbols-outlined text-primary">category</span>
-            <h2 className="font-headline-md text-headline-md text-on-surface">Categories</h2>
+        <section className="mb-3xl xl:mb-8">
+          <div className="flex items-center gap-2 mb-lg xl:mb-4">
+            <span className="material-symbols-outlined text-primary text-[20px]">category</span>
+            <h2 className="font-headline-md text-headline-md xl:text-lg text-on-surface font-bold">Categories</h2>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-md select-none">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-md xl:gap-3 select-none">
             {categoryConfig.map((cat) => {
               const isActive = activeCategory === cat.name;
               return (
                 <button
                   key={cat.name}
                   onClick={() => setActiveCategory(isActive ? "All" : cat.name)}
-                  className={`group flex flex-col items-center justify-center p-lg rounded-xl shadow-sm hover:shadow-md transition-all border ${
+                  className={`group flex flex-col xl:flex-row items-center justify-center xl:justify-start p-lg xl:p-2.5 xl:h-12 rounded-xl shadow-sm hover:shadow-md transition-all border xl:gap-3 ${
                     isActive 
                       ? "bg-primary text-on-primary border-primary ring-2 ring-primary/20" 
-                      : "bg-surface-container-lowest border-outline-variant hover:border-primary"
+                      : "bg-surface-container-lowest border-outline-variant hover:border-primary xl:hover:-translate-y-0.5 xl:hover:border-primary/40"
                   }`}
                 >
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-sm group-hover:scale-110 transition-transform ${
+                  <div className={`w-12 h-12 xl:w-7 xl:h-7 rounded-full flex items-center justify-center mb-sm xl:mb-0 group-hover:scale-110 xl:group-hover:scale-105 transition-transform ${
                     isActive ? "bg-white/20 text-white" : cat.bg
                   }`}>
-                    <span className="material-symbols-outlined">{cat.icon}</span>
+                    <span className="material-symbols-outlined text-[20px] xl:text-[16px]">{cat.icon}</span>
                   </div>
-                  <span className={`font-label-md text-label-md ${isActive ? "text-on-primary font-bold" : "text-on-surface"}`}>
+                  <span className={`font-label-md text-label-md xl:text-xs ${isActive ? "text-on-primary font-bold" : "text-on-surface"}`}>
                     {cat.displayName || cat.name}
                   </span>
                 </button>
@@ -137,17 +137,17 @@ export default function Catalog() {
 
         {/* Featured Medicines Section */}
         <section>
-          <div className="flex items-center justify-between mb-lg">
+          <div className="flex items-center justify-between mb-lg xl:mb-4">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">verified</span>
-              <h2 className="font-headline-md text-headline-md text-on-surface">
+              <span className="material-symbols-outlined text-primary text-[20px]">verified</span>
+              <h2 className="font-headline-md text-headline-md xl:text-lg text-on-surface font-bold">
                 {activeCategory === "All" ? "Featured Medicines" : `${activeCategory} List`}
               </h2>
             </div>
             {activeCategory !== "All" && (
               <button 
                 onClick={() => setActiveCategory("All")}
-                className="text-primary font-label-md text-label-md hover:underline font-bold"
+                className="text-primary font-label-md text-label-md xl:text-xs hover:underline font-bold"
               >
                 View All
               </button>
@@ -173,7 +173,7 @@ export default function Catalog() {
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-lg">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-lg xl:gap-5">
                 {medicines.map((med: MedicineItem) => {
                   const inCartItem = cart.find((i) => i.id === med.id);
                   const remainingStock = med.stock - (inCartItem?.quantity || 0);
@@ -187,10 +187,10 @@ export default function Catalog() {
                   return (
                     <div
                       key={med.id}
-                      className="group bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden flex flex-col shadow-sm hover:shadow-lg transition-all"
+                      className="group bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden flex flex-col shadow-sm hover:shadow-md xl:hover:-translate-y-0.5 transition-all duration-300"
                     >
                       {/* Image / Icon container */}
-                      <div className="relative h-48 bg-surface-container-low p-md overflow-hidden flex items-center justify-center text-outline">
+                      <div className="relative h-48 xl:h-36 bg-surface-container-low p-md overflow-hidden flex items-center justify-center text-outline">
                         {med.image ? (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img
@@ -199,7 +199,7 @@ export default function Catalog() {
                             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
                           />
                         ) : (
-                          <span className="material-symbols-outlined text-[64px]">medication</span>
+                          <span className="material-symbols-outlined text-[64px] xl:text-[48px]">medication</span>
                         )}
                         
                         <span className="absolute top-3 left-3 bg-surface-variant text-on-surface-variant font-label-sm text-label-sm px-2.5 py-1 rounded-full border border-outline-variant shadow-sm uppercase font-bold tracking-wider">
@@ -207,9 +207,9 @@ export default function Catalog() {
                         </span>
                       </div>
 
-                      <div className="p-lg flex flex-col flex-grow">
+                      <div className="p-lg xl:p-4 flex flex-col flex-grow">
                         <div className="flex justify-between items-start mb-sm gap-2">
-                          <h3 className="font-headline-md text-body-lg font-bold text-on-surface truncate" title={med.name}>
+                          <h3 className="font-headline-md text-body-lg xl:text-sm font-bold text-on-surface truncate" title={med.name}>
                             {med.name}
                           </h3>
                           
@@ -228,16 +228,16 @@ export default function Catalog() {
                           )}
                         </div>
 
-                        <p className="font-body-sm text-body-sm text-on-surface-variant mb-lg line-clamp-2">
+                        <p className="font-body-sm text-body-sm xl:text-xs text-on-surface-variant mb-lg xl:mb-4 line-clamp-2">
                           {med.description || "Clinically certified medical formulation for pharmacy distribution."}
                         </p>
 
                         <div className="mt-auto flex items-center justify-between">
                           <div className="flex flex-col">
-                            <span className="font-label-sm text-label-sm text-on-surface-variant line-through">
+                            <span className="font-label-sm text-label-sm xl:text-[10px] text-on-surface-variant line-through">
                               ₹{mockListPrice.toFixed(2)}
                             </span>
-                            <span className="font-headline-md text-headline-md text-primary font-bold">
+                            <span className="font-headline-md text-headline-md xl:text-base text-primary font-bold">
                               ₹{med.price.toFixed(2)}
                             </span>
                           </div>
@@ -245,7 +245,7 @@ export default function Catalog() {
                           <button
                             onClick={() => handleAddToCart(med)}
                             disabled={isOutOfStock}
-                            className={`px-lg py-sm rounded-xl font-label-md text-label-md flex items-center gap-2 transition-all active:scale-95 shadow-md ${
+                            className={`px-lg py-sm xl:px-3 xl:py-1.5 rounded-xl xl:rounded-lg font-label-md text-label-md xl:text-xs flex items-center gap-2 transition-all active:scale-95 shadow-md ${
                               isAdded 
                                 ? "bg-[#1d804e] text-on-primary" 
                                 : "bg-primary hover:bg-primary-container text-on-primary disabled:opacity-50 disabled:cursor-not-allowed"
@@ -265,16 +265,16 @@ export default function Catalog() {
 
               {/* Pagination controls */}
               <div className="pt-6 border-t border-outline-variant flex items-center justify-between">
-                <span className="font-label-md text-label-md text-on-surface-variant font-medium">
+                <span className="font-label-md text-label-md xl:text-xs text-on-surface-variant font-medium">
                   Showing {totalCount > 0 ? (page - 1) * pageSize + 1 : 0} to {Math.min(page * pageSize, totalCount)} of {totalCount} medicines
                 </span>
                 <div className="flex gap-xs">
                   <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                    className="px-4 py-2 border border-outline-variant rounded-lg text-label-md font-label-md hover:bg-surface-container-low transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                    className="px-4 py-2 border border-outline-variant rounded-lg text-label-md font-label-md xl:text-xs hover:bg-surface-container-low transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                     Previous
                   </button>
                   <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                    className="px-4 py-2 bg-[#003d9b] text-white rounded-lg text-label-md font-label-md hover:opacity-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
+                    className="px-4 py-2 bg-[#003d9b] text-white rounded-lg text-label-md font-label-md xl:text-xs hover:opacity-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
                     Next
                   </button>
                 </div>
