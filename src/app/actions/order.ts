@@ -63,7 +63,7 @@ export async function createOrder(input: CreateOrderInput) {
       const order = await tx.order.create({
         data: {
           prescriptionNumber: input.prescriptionNumber,
-          patientId: patient.id,
+          patient: { connect: { id: patient.id } },
           status: "PENDING",
           chemistEmail: input.chemistEmail || null,
         },
