@@ -529,10 +529,10 @@ export default function Checkout() {
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
               <Link
-                href="/dashboard"
+                href="/dashboard/otp"
                 className="w-full sm:w-auto px-6 py-3.5 bg-surface border border-outline-variant text-on-surface rounded-xl font-label-md text-label-md hover:bg-surface-container transition-all"
               >
-                Back to Dashboard
+                Track Orders
               </Link>
               
               <Link
