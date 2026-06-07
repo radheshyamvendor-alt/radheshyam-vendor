@@ -253,12 +253,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "OCR service unavailable" }, { status: 500 });
     }
 
-    let rawText = "";
-
     // Forward file to the external PaddleOCR service
     const ocrFormData = new FormData();
     ocrFormData.append("file", file);
 
+    let ocrResult: any;
     try {
       const ocrResponse = await fetch(serviceUrl, {
         method: "POST",
@@ -269,106 +268,79 @@ export async function POST(req: NextRequest) {
         throw new Error(`PaddleOCR service returned status ${ocrResponse.status}`);
       }
 
-      const ocrResult = await ocrResponse.json();
+      ocrResult = await ocrResponse.json();
       if (!ocrResult.success) {
         throw new Error(ocrResult.error || "PaddleOCR service failed");
       }
-
-      rawText = ocrResult.text || "";
     } catch (err) {
       console.error("External PaddleOCR request failed:", err);
       return NextResponse.json({ success: false, error: "OCR service unavailable" }, { status: 500 });
     }
 
-    rawText = rawText.trim();
-    if (!rawText) {
-      return NextResponse.json({ success: false, error: "Unable to scan prescription" }, { status: 500 });
-    }
+    // The PaddleOCR service returns structured data directly:
+    // { success, prescriptionNumber, patient: { name, address, mobile, gender, age }, medicines: [{ name, quantity, ... }] }
+    const prescriptionNumber: string = ocrResult.prescriptionNumber || "";
+    const ocrPatient = ocrResult.patient || {};
+    const ocrMedicines: any[] = ocrResult.medicines || [];
 
-    const lines = rawText.split(/\r?\n/)
-      .map(line => line.trim())
-      .filter(line => line.length > 0)
-      .map(line => ({
-        text: line,
-        confidence: 1.0
-      }));
-
-    // 2. Extraction Engine
-    const { prescriptionNumber, patient } = extractPatientInfo(rawText);
-
-    // 3. Medicine Matching against Database
+    // Match OCR medicine names against our local database
     const allDbMedicines = await prisma.medicine.findMany();
     const verifiedMedicines: any[] = [];
 
-    for (const ocrLine of lines) {
-      const cleaned = cleanOcrLine(ocrLine.text);
-      if (cleaned.length < 5) continue; // Skip lines that are too short to be medicines
+    for (const ocrMed of ocrMedicines) {
+      const ocrName: string = (ocrMed.name || "").trim();
+      if (ocrName.length < 2) continue;
 
-      let bestMatch: any = null;
+      // Fuzzy match by name against our DB
+      let bestMatch: typeof allDbMedicines[0] | null = null;
       let highestScore = 0;
 
       for (const dbMed of allDbMedicines) {
-        const score = calculateSimilarity(cleaned, dbMed.name);
+        const score = calculateSimilarity(ocrName, dbMed.name);
         if (score > highestScore) {
           highestScore = score;
           bestMatch = dbMed;
         }
       }
 
-      // Similarity Score serves as our fuzzy matching score. Accept only matches >= 85% (0.85).
-      if (highestScore >= 0.85 && bestMatch) {
-        const qty = extractQuantity(ocrLine.text);
-        
-        // Prevent duplicate items
-        if (!verifiedMedicines.some((item) => item.id === bestMatch.id)) {
-          verifiedMedicines.push({
-            id: bestMatch.id,
-            name: bestMatch.name,
-            price: bestMatch.price,
-            stock: bestMatch.stock,
-            quantity: qty,
-            confidence: ocrLine.confidence
-          });
-        }
+      // Only use match if similarity >= 75%
+      if (highestScore < 0.75) bestMatch = null;
+
+      // Prevent duplicates
+      const alreadyAdded = verifiedMedicines.some(
+        (item) => (bestMatch ? item.id === bestMatch!.id : item.name === ocrName)
+      );
+      if (!alreadyAdded) {
+        verifiedMedicines.push({
+          id: bestMatch?.id ?? null,
+          name: bestMatch?.name ?? ocrName,
+          price: bestMatch?.price ?? null,
+          stock: bestMatch?.stock ?? null,
+          quantity: ocrMed.quantity || 1,
+          confidence: ocrMed.confidence ?? 1,
+        });
       }
     }
 
-    // 4. Validation Layer: Ensure all returned values exist in OCR text (if not, set to null)
-    let finalRxNo = prescriptionNumber;
-    if (finalRxNo && !containsAlphanumericIgnoreCase(rawText, finalRxNo)) {
-      finalRxNo = null;
-    }
-
-    const finalPatient = {
-      name: patient.name && containsIgnoreCase(rawText, patient.name) ? patient.name : null,
-      address: patient.address && containsIgnoreCase(rawText, patient.address) ? patient.address : null,
-      mobile: patient.mobile && containsPhoneIgnoreCase(rawText, patient.mobile) ? patient.mobile : null,
-      gender: patient.gender && (
-        containsIgnoreCase(rawText, patient.gender) ||
-        (patient.gender === "Male" && /\b(?:sex|gender)[:.\s-]*m\b/i.test(rawText)) ||
-        (patient.gender === "Female" && /\b(?:sex|gender)[:.\s-]*f\b/i.test(rawText))
-      ) ? patient.gender : null,
-      age: patient.age && containsIgnoreCase(rawText, patient.age) ? patient.age : null
-    };
-
+    // Build patient object — only include fields that have values
     const patientObj: Record<string, any> = {};
-    if (finalPatient.name) patientObj.name = finalPatient.name;
-    if (finalPatient.address) patientObj.address = finalPatient.address;
-    if (finalPatient.mobile) patientObj.mobile = finalPatient.mobile;
-    if (finalPatient.gender) patientObj.gender = finalPatient.gender;
-    if (finalPatient.age) patientObj.age = finalPatient.age;
+    if (ocrPatient.name) patientObj.name = ocrPatient.name;
+    if (ocrPatient.address) patientObj.address = ocrPatient.address;
+    if (ocrPatient.mobile) patientObj.mobile = ocrPatient.mobile;
+    if (ocrPatient.gender) patientObj.gender = ocrPatient.gender;
+    if (ocrPatient.age != null) patientObj.age = ocrPatient.age;
 
-    // Construct response matching expected frontend structure and root structure
+    // Construct response matching expected frontend structure
     const responsePayload = {
       success: true,
-      prescriptionNumber: finalRxNo || "",
+      prescriptionNumber,
       patient: patientObj,
       medicines: verifiedMedicines,
       data: {
-        prescriptionNumber: finalRxNo || "",
+        prescriptionNumber,
         patient: patientObj,
-        medicines: verifiedMedicines
-      }
+        medicines: verifiedMedicines,
+      },
     };
 
     return NextResponse.json(responsePayload);
