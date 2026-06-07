@@ -247,10 +247,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 });
     }
 
-    const serviceUrl = process.env.PADDLEOCR_SERVICE_URL;
-    if (!serviceUrl) {
-      console.error("PADDLEOCR_SERVICE_URL is not defined in environment variables");
-      return NextResponse.json({ success: false, error: "OCR service unavailable" }, { status: 500 });
+    const serviceUrl = process.env.PADDLEOCR_SERVICE_URL || "https://paddle-ocr-dwox.onrender.com/ocr";
+    if (!process.env.PADDLEOCR_SERVICE_URL) {
+      console.warn("PADDLEOCR_SERVICE_URL is not defined in environment variables, falling back to default Render service URL.");
     }
 
     // Forward file to the external PaddleOCR service
