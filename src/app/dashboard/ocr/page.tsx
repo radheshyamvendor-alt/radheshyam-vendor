@@ -7,19 +7,19 @@ import Header from "@/components/dashboard/Header";
 import BottomNav from "@/components/dashboard/BottomNav";
 
 interface ExtractedMedicine {
-  id: string;
+  id: string | null;
   name: string;
-  price: number;
+  price: number | null;
   quantity: number;
-  stock: number;
+  stock: number | null;
 }
 
 interface ExtractedPatient {
-  name: string;
-  address: string;
-  mobile: string;
-  gender: string;
-  age: number;
+  name?: string | null;
+  address?: string | null;
+  mobile?: string | null;
+  gender?: string | null;
+  age?: number | null;
 }
 
 interface OcrResult {
@@ -40,17 +40,17 @@ export default function OcrPage() {
   const [addedToCart, setAddedToCart] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  const handleUpdateMedQty = (medId: string, newQty: number) => {
+  const handleUpdateMedQty = (medName: string, newQty: number) => {
     if (!pendingResult) return;
     const updatedMeds = pendingResult.medicines.map((med) =>
-      med.id === medId ? { ...med, quantity: Math.max(1, newQty) } : med
+      med.name === medName ? { ...med, quantity: Math.max(1, newQty) } : med
     );
     setPendingResult({ ...pendingResult, medicines: updatedMeds });
   };
 
-  const handleRemoveMed = (medId: string) => {
+  const handleRemoveMed = (medName: string) => {
     if (!pendingResult) return;
-    const updatedMeds = pendingResult.medicines.filter((med) => med.id !== medId);
+    const updatedMeds = pendingResult.medicines.filter((med) => med.name !== medName);
     setPendingResult({ ...pendingResult, medicines: updatedMeds });
   };
 
@@ -120,16 +120,18 @@ export default function OcrPage() {
   const handleConfirmAndAdd = () => {
     if (!pendingResult) return;
 
-    // Validate phone number (exactly 10 digits)
-    const mobileDigits = pendingResult.patient.mobile.replace(/\D/g, "");
-    if (mobileDigits.length !== 10) {
-      setOcrError("Mobile number must be exactly 10 digits.");
-      if (typeof window !== "undefined") {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+    // Validate phone number only if it was extracted (mobile may be null)
+    if (pendingResult.patient.mobile != null) {
+      const mobileDigits = String(pendingResult.patient.mobile).replace(/\D/g, "");
+      if (mobileDigits.length !== 10) {
+        setOcrError("Mobile number must be exactly 10 digits.");
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+        return;
       }
-      return;
+      pendingResult.patient.mobile = mobileDigits;
     }
-    pendingResult.patient.mobile = mobileDigits;
 
     // Save prescription details to localStorage
     if (typeof window !== "undefined") {
@@ -142,8 +144,21 @@ export default function OcrPage() {
       );
     }
 
-    // Only now add medicines to cart
-    addMultipleToCart(pendingResult.medicines);
+    // Only add medicines that exist in our DB (id != null)
+    const cartableMedicines = pendingResult.medicines
+      .filter((m): m is ExtractedMedicine & { id: string } => m.id !== null)
+      .map((m) => ({
+        id: m.id,
+        name: m.name,
+        price: m.price ?? 0,
+        stock: m.stock ?? 0,
+        quantity: m.quantity,
+      }));
+
+    if (cartableMedicines.length > 0) {
+      addMultipleToCart(cartableMedicines);
+    }
+
     setAddedToCart(true);
   };
 
@@ -256,7 +271,7 @@ export default function OcrPage() {
                       <label className="text-xs font-semibold text-outline block mb-1">Patient Name</label>
                       <input
                         type="text"
-                        value={pendingResult.patient.name}
+                        value={pendingResult.patient.name || ""}
                         onChange={(e) => setPendingResult({
                           ...pendingResult,
                           patient: { ...pendingResult.patient, name: e.target.value }
@@ -281,7 +296,7 @@ export default function OcrPage() {
                         <label className="text-xs font-semibold text-outline block mb-1">Mobile Number</label>
                         <input
                           type="text"
-                          value={pendingResult.patient.mobile}
+                          value={pendingResult.patient.mobile || ""}
                           onChange={(e) => setPendingResult({
                             ...pendingResult,
                             patient: { ...pendingResult.patient, mobile: e.target.value }
@@ -293,7 +308,7 @@ export default function OcrPage() {
                     <div>
                       <label className="text-xs font-semibold text-outline block mb-1">Residential Address</label>
                       <textarea
-                        value={pendingResult.patient.address}
+                        value={pendingResult.patient.address || ""}
                         onChange={(e) => setPendingResult({
                           ...pendingResult,
                           patient: { ...pendingResult.patient, address: e.target.value }
@@ -335,7 +350,7 @@ export default function OcrPage() {
                     </div>
                   ) : (
                     pendingResult.medicines.map((med) => (
-                      <div key={med.id} className="py-3 flex justify-between items-center text-sm gap-2">
+                      <div key={med.id || med.name} className="py-3 flex justify-between items-center text-sm gap-2">
                         <div className="flex-grow">
                           <span className="font-semibold text-on-surface">{med.name}</span>
                           <span className="block text-xs text-on-surface-variant mt-0.5">{med.price != null ? `₹${med.price.toFixed(2)} each` : "Price N/A (not in inventory)"}</span>
@@ -346,7 +361,7 @@ export default function OcrPage() {
                             <div className="flex items-center border border-outline-variant rounded-lg overflow-hidden bg-surface">
                               <button
                                 type="button"
-                                onClick={() => handleUpdateMedQty(med.id, med.quantity - 1)}
+                                onClick={() => handleUpdateMedQty(med.name, med.quantity - 1)}
                                 className="px-2 py-1 hover:bg-surface-container text-primary font-bold transition-all active:scale-75"
                               >
                                 <span className="material-symbols-outlined text-[16px]">remove</span>
@@ -356,7 +371,7 @@ export default function OcrPage() {
                               </span>
                               <button
                                 type="button"
-                                onClick={() => handleUpdateMedQty(med.id, med.quantity + 1)}
+                                onClick={() => handleUpdateMedQty(med.name, med.quantity + 1)}
                                 className="px-2 py-1 hover:bg-surface-container text-primary font-bold transition-all active:scale-75"
                               >
                                 <span className="material-symbols-outlined text-[16px]">add</span>
@@ -365,7 +380,7 @@ export default function OcrPage() {
                             {/* Remove button */}
                             <button
                               type="button"
-                              onClick={() => handleRemoveMed(med.id)}
+                              onClick={() => handleRemoveMed(med.name)}
                               className="text-error hover:bg-error-container/10 p-2 rounded-full transition-colors"
                               title="Delete medicine"
                             >
@@ -405,13 +420,17 @@ export default function OcrPage() {
           )}
 
           {/* STEP 3: Added to cart confirmation */}
-          {addedToCart && (
+          {addedToCart && pendingResult && (
             <div className="bg-surface border border-outline-variant shadow-sm rounded-xl p-6 glass-card space-y-6">
               <div className="flex items-center gap-3 p-4 bg-primary-container/10 border border-primary/20 text-primary rounded-xl">
                 <span className="material-symbols-outlined text-[24px]">check_circle</span>
                 <div>
-                  <h4 className="font-bold text-sm">Medicines Added to Cart!</h4>
-                  <p className="text-xs text-on-surface-variant mt-0.5">The prescription details and medicines have been saved to your cart.</p>
+                  <h4 className="font-bold text-sm">Prescription Details Saved!</h4>
+                  {pendingResult.medicines.filter((m) => m.id != null).length > 0 ? (
+                    <p className="text-xs text-on-surface-variant mt-0.5">Matched medicines have been added to your cart. Proceed to checkout.</p>
+                  ) : (
+                    <p className="text-xs text-on-surface-variant mt-0.5">Patient details saved. No medicines matched your inventory — please add them manually from the Medicines page.</p>
+                  )}
                 </div>
               </div>
 
