@@ -338,7 +338,7 @@ export default function OcrPage() {
                       <div key={med.id} className="py-3 flex justify-between items-center text-sm gap-2">
                         <div className="flex-grow">
                           <span className="font-semibold text-on-surface">{med.name}</span>
-                          <span className="block text-xs text-on-surface-variant mt-0.5">₹{med.price.toFixed(2)} each</span>
+                          <span className="block text-xs text-on-surface-variant mt-0.5">{med.price != null ? `₹${med.price.toFixed(2)} each` : "Price N/A (not in inventory)"}</span>
                         </div>
                         {isEditing ? (
                           <div className="flex items-center gap-3">
@@ -375,7 +375,7 @@ export default function OcrPage() {
                         ) : (
                           <div className="text-right">
                             <span className="font-bold text-primary">Qty: {med.quantity}</span>
-                            <span className="block text-xs font-semibold text-outline mt-0.5">Total: ₹{(med.price * med.quantity).toFixed(2)}</span>
+                             <span className="block text-xs font-semibold text-outline mt-0.5">{med.price != null ? `Total: ₹${(med.price * med.quantity).toFixed(2)}` : "Total: N/A"}</span>
                           </div>
                         )}
                       </div>
