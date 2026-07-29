@@ -38,17 +38,51 @@ export const tokenStorage = {
     localStorage.removeItem(AUTH_CONSTANTS.STORAGE_KEYS.USER_DATA);
   },
 
-  setUserData(data: { name: string; email: string; mobile: string; location: string }): void {
+  setUserData(data: { id?: string; name?: string; email?: string; mobile?: string; location?: string }): void {
     if (typeof window === "undefined") return;
-    localStorage.setItem(AUTH_CONSTANTS.STORAGE_KEYS.USER_DATA, JSON.stringify(data));
+    if (!data || typeof data !== "object") return;
+    
+    // Ensure we only store valid non-empty user properties
+    const cleaned = {
+      id: data.id || undefined,
+      name: data.name || "",
+      email: data.email || "",
+      mobile: data.mobile || "",
+      location: data.location || "",
+    };
+
+    if (!cleaned.name && !cleaned.email && !cleaned.mobile) {
+      // Do not store empty object
+      return;
+    }
+
+    localStorage.setItem(AUTH_CONSTANTS.STORAGE_KEYS.USER_DATA, JSON.stringify(cleaned));
   },
 
-  getUserData(): { name: string; email: string; mobile: string; location: string } | null {
+  getUserData(): { id?: string; name: string; email: string; mobile: string; location: string } | null {
     if (typeof window === "undefined") return null;
     const data = localStorage.getItem(AUTH_CONSTANTS.STORAGE_KEYS.USER_DATA);
     if (!data) return null;
     try {
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      if (!parsed || typeof parsed !== "object") return null;
+      
+      const name = parsed.name || parsed.Name || "";
+      const email = parsed.email || parsed.Email || "";
+      const mobile = parsed.mobile || parsed.Mobile || parsed.phone || parsed.Phone || "";
+      const location = parsed.location || parsed.Location || parsed.address || parsed.Address || "";
+
+      if (!name && !email && !mobile) {
+        return null;
+      }
+
+      return {
+        id: parsed.id || parsed.Id || undefined,
+        name: name || "Registered Chemist",
+        email,
+        mobile,
+        location,
+      };
     } catch {
       return null;
     }

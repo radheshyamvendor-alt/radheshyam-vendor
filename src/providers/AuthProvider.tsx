@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import { tokenStorage } from "@/lib/tokenStorage";
 import { setLocalAccessToken, getLocalAccessToken } from "@/lib/axios";
+import { getUserFromToken } from "@/lib/jwt";
 import { AUTH_CONSTANTS } from "@/services/auth.constants";
 import {
   LoginRequest,
@@ -15,6 +16,7 @@ import {
 import { authService } from "@/services/auth.service";
 
 interface User {
+  id?: string;
   name: string;
   email: string;
   mobile: string;
@@ -34,6 +36,59 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function normalizeUserData(input: any): User | null {
+  if (!input || typeof input !== "object") return null;
+
+  const data = input.data || input.user || input.profile || input;
+
+  const name =
+    data.name ||
+    data.Name ||
+    data.fullName ||
+    data.FullName ||
+    data.username ||
+    data.userName ||
+    data.UserName ||
+    "";
+
+  const email =
+    data.email ||
+    data.Email ||
+    data.emailAddress ||
+    data.EmailAddress ||
+    "";
+
+  const mobile =
+    data.mobile ||
+    data.Mobile ||
+    data.mobileNumber ||
+    data.MobileNumber ||
+    data.phone ||
+    data.Phone ||
+    data.phoneNumber ||
+    data.PhoneNumber ||
+    "";
+
+  const location =
+    data.location ||
+    data.Location ||
+    data.address ||
+    data.Address ||
+    data.city ||
+    data.City ||
+    "";
+
+  if (!name && !email && !mobile) return null;
+
+  return {
+    id: data.id || data.Id || data.chemistId || data.ChemistId || undefined,
+    name: name || "Registered Chemist",
+    email: email || "",
+    mobile: mobile || "",
+    location: location || "",
+  };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -107,6 +162,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const storedRefreshToken = tokenStorage.getRefreshToken();
       const cachedUser = tokenStorage.getUserData();
 
+      if (cachedUser) {
+        setUser(cachedUser);
+      }
+
       if (!storedRefreshToken) {
         setIsLoading(false);
         return;
@@ -125,41 +184,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLocalAccessToken(accessToken);
           tokenStorage.setRefreshToken(refreshToken, expiration);
           
-          try {
-            const profileResponse = await authService.getProfile() as any;
-            let profile: User | null = null;
-            if (profileResponse) {
-              if (profileResponse.email || profileResponse.name) {
-                profile = {
-                  name: profileResponse.name || "",
-                  email: profileResponse.email || "",
-                  mobile: profileResponse.mobile || "",
-                  location: profileResponse.location || "",
-                };
-              } else if (profileResponse.success && profileResponse.data) {
-                profile = profileResponse.data;
-              }
-            }
+          let profile: User | null = null;
 
-            if (profile) {
-              tokenStorage.setUserData(profile);
-              setUser(profile);
-            } else {
-              throw new Error("Failed to parse profile response");
-            }
+          try {
+            const profileResponse = await authService.getProfile();
+            profile = normalizeUserData(profileResponse);
           } catch (profileErr) {
-            console.warn("Failed to fetch fresh profile, using cached/fallback:", profileErr);
-            if (cachedUser) {
-              setUser(cachedUser);
-            } else {
-              // Fallback user if cache was cleared
-              setUser({
-                name: "Authenticated Chemist",
-                email: "chemist@gmail.com",
-                mobile: "0000000000",
-                location: "Delhi",
-              });
-            }
+            console.warn("Failed to fetch fresh profile from endpoint:", profileErr);
+          }
+
+          if (!profile) {
+            profile = getUserFromToken(accessToken);
+          }
+
+          if (profile) {
+            tokenStorage.setUserData(profile);
+            setUser(profile);
+          } else if (!cachedUser) {
+            const fallbackUser = {
+              name: "Registered Chemist",
+              email: "chemist@gmail.com",
+              mobile: "9876543210",
+              location: "Main Pharmacy Center",
+            };
+            tokenStorage.setUserData(fallbackUser);
+            setUser(fallbackUser);
           }
 
           // Schedule automated background silent refresh
@@ -167,11 +216,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           tokenStorage.clearTokens();
           setLocalAccessToken(null);
+          setUser(null);
         }
       } catch (err) {
         console.error("Session restoration failed:", err);
         tokenStorage.clearTokens();
         setLocalAccessToken(null);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -186,22 +237,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await authService.login(data);
       if (response.success && response.data) {
-        const { accessToken, refreshToken, email, name, mobile, location, expiration } = response.data;
+        const { accessToken, refreshToken, expiration } = response.data;
         
         // Save in-memory
         setLocalAccessToken(accessToken);
         
-        // Save secure refresh token in cookie and profile cache in storage
+        // Save secure refresh token in cookie
         tokenStorage.setRefreshToken(refreshToken, expiration);
-        const profile = { name, email, mobile, location };
-        tokenStorage.setUserData(profile);
         
+        // Normalize user profile from login response, JWT claims, or login form input
+        let profile = normalizeUserData(response.data);
+        if (!profile) {
+          profile = getUserFromToken(accessToken);
+        }
+        if (!profile) {
+          profile = {
+            name: "Registered Chemist",
+            email: data.email || "",
+            mobile: "",
+            location: "",
+          };
+        }
+
+        tokenStorage.setUserData(profile);
         setUser(profile);
 
         // Schedule automated background silent refresh
         scheduleNextRefresh(expiration);
 
-        router.push("/dashboard/catalog");
+        router.push("/dashboard/otp");
       } else {
         throw new Error(response.message || "Login failed");
       }
@@ -272,19 +336,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!storedRefreshToken) return;
 
     try {
-      const profileResponse = await authService.getProfile() as any;
       let profile: User | null = null;
-      if (profileResponse) {
-        if (profileResponse.email || profileResponse.name) {
-          profile = {
-            name: profileResponse.name || "",
-            email: profileResponse.email || "",
-            mobile: profileResponse.mobile || "",
-            location: profileResponse.location || "",
-          };
-        } else if (profileResponse.success && profileResponse.data) {
-          profile = profileResponse.data;
-        }
+      try {
+        const profileResponse = await authService.getProfile();
+        profile = normalizeUserData(profileResponse);
+      } catch (profileErr) {
+        console.warn("Profile endpoint unreachable during refreshProfile:", profileErr);
+      }
+
+      if (!profile) {
+        profile = getUserFromToken();
       }
 
       if (profile) {
