@@ -22,3 +22,29 @@ model Order {
   chemistId          String?
   chemistEmail       String?
 }
+
+model GmailConnection {
+  id                    String    @id @default(uuid())
+  chemistEmail          String    @unique
+  gmailAddress          String
+  encryptedRefreshToken String
+  historyId             String?
+  watchExpiry           DateTime?
+  isActive              Boolean   @default(true)
+  connectedAt           DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model GmailPrescription {
+  id           String   @id @default(uuid())
+  chemistEmail String
+  sender       String?
+  subject      String?
+  filename     String
+  attachmentId String
+  messageId    String
+  status       String   @default("PENDING") // PENDING, PROCESSED
+  receivedAt   DateTime @default(now())
+
+  @@unique([chemistEmail, messageId, filename])
+}

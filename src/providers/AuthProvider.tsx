@@ -7,6 +7,7 @@ import { tokenStorage } from "@/lib/tokenStorage";
 import { setLocalAccessToken, getLocalAccessToken } from "@/lib/axios";
 import { getUserFromToken } from "@/lib/jwt";
 import { AUTH_CONSTANTS } from "@/services/auth.constants";
+import { NotificationProvider } from "@/context/NotificationContext";
 import {
   LoginRequest,
   RegisterRequest,
@@ -116,7 +117,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLocalAccessToken(accessToken);
         tokenStorage.setRefreshToken(refreshToken, expiration);
         
-        // Re-schedule next silent refresh
         scheduleNextRefresh(expiration);
       } else {
         throw new Error("Token refresh returned success: false");
@@ -136,7 +136,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const currentTime = new Date().getTime();
     const diffMs = expiryTime - currentTime;
 
-    // Refresh 60 seconds before actual token expiration
     const refreshBuffer = 60 * 1000;
     const delay = Math.max(diffMs - refreshBuffer, 0);
 
@@ -147,7 +146,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Clear timeout on unmount
   useEffect(() => {
     return () => {
       if (refreshTimeoutRef.current) {
@@ -172,7 +170,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        // Exchange refresh token for access token immediately
         const response = await axios.post<RefreshTokenResponse>(
           `${AUTH_CONSTANTS.API_BASE_URL}auth/refresh-token`,
           { refreshToken: storedRefreshToken }
@@ -200,29 +197,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (profile) {
             tokenStorage.setUserData(profile);
             setUser(profile);
-          } else if (!cachedUser) {
-            const fallbackUser = {
-              name: "Registered Chemist",
-              email: "chemist@gmail.com",
-              mobile: "9876543210",
-              location: "Main Pharmacy Center",
-            };
-            tokenStorage.setUserData(fallbackUser);
-            setUser(fallbackUser);
           }
 
-          // Schedule automated background silent refresh
           scheduleNextRefresh(expiration);
-        } else {
+        } else if (!cachedUser) {
           tokenStorage.clearTokens();
           setLocalAccessToken(null);
           setUser(null);
         }
       } catch (err) {
         console.error("Session restoration failed:", err);
-        tokenStorage.clearTokens();
-        setLocalAccessToken(null);
-        setUser(null);
+        if (!cachedUser) {
+          tokenStorage.clearTokens();
+          setLocalAccessToken(null);
+          setUser(null);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -239,13 +228,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.success && response.data) {
         const { accessToken, refreshToken, expiration } = response.data;
         
-        // Save in-memory
         setLocalAccessToken(accessToken);
-        
-        // Save secure refresh token in cookie
         tokenStorage.setRefreshToken(refreshToken, expiration);
         
-        // Normalize user profile from login response, JWT claims, or login form input
         let profile = normalizeUserData(response.data);
         if (!profile) {
           profile = getUserFromToken(accessToken);
@@ -262,7 +247,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tokenStorage.setUserData(profile);
         setUser(profile);
 
-        // Schedule automated background silent refresh
         scheduleNextRefresh(expiration);
 
         router.push("/dashboard/otp");
@@ -371,7 +355,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshProfile,
       }}
     >
-      {children}
+      <NotificationProvider chemistEmail={user?.email || ""}>
+        {children}
+      </NotificationProvider>
     </AuthContext.Provider>
   );
 }
