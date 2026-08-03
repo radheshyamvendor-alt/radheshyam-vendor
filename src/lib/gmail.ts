@@ -150,14 +150,10 @@ export async function getPdfAttachments(
 
   const pdfs: Array<{ attachmentId: string; filename: string }> = [];
 
-  const checkPart = (part: any, depth = 0) => {
+  const checkPart = (part: any) => {
     if (!part) return;
     const filename = part.filename || "";
     const mimeType = part.mimeType || "";
-    const indent = "  ".repeat(depth);
-
-    // Log every part to understand the email structure
-    console.log(`[Gmail Attachment Debug]${indent} mimeType=${mimeType} | filename="${filename}" | hasAttachmentId=${!!part.body?.attachmentId} | bodySize=${part.body?.size ?? 0}`);
 
     const isPrescriptionFile =
       mimeType.toLowerCase() === "application/pdf" ||
@@ -166,7 +162,6 @@ export async function getPdfAttachments(
       /\.(pdf|png|jpe?g|webp)$/i.test(filename);
 
     if (isPrescriptionFile && (part.body?.attachmentId || part.body?.data || part.body?.size) && filename) {
-      console.log(`[Gmail Attachment Debug]${indent} ✅ MATCHED: ${filename}`);
       pdfs.push({
         attachmentId: part.body?.attachmentId || "inline",
         filename,
@@ -175,7 +170,7 @@ export async function getPdfAttachments(
 
     if (part.parts && Array.isArray(part.parts)) {
       for (const subPart of part.parts) {
-        checkPart(subPart, depth + 1);
+        checkPart(subPart);
       }
     }
   };
@@ -300,8 +295,8 @@ export async function syncGmailInbox(chemistEmail: string): Promise<number> {
 
   const res = await gmail.users.messages.list({
     userId: "me",
-    q: "has:attachment",
-    maxResults: 200,
+    q: "has:attachment newer_than:1d",
+    maxResults: 150,
   });
 
   const messages = res.data.messages ?? [];
@@ -321,34 +316,21 @@ export async function syncGmailInbox(chemistEmail: string): Promise<number> {
     const subject = headers.find((h) => h.name?.toLowerCase() === "subject")?.value ?? undefined;
 
     // Filter out non-prescription emails (e.g. Microsoft invoices, GitHub notifications)
-    if (isNonPrescriptionEmail(sender, subject)) {
-      console.log(`[Gmail Sync] ⏭ Skipping non-prescription email: from=${sender} | subject=${subject}`);
-      continue;
-    }
-
-    console.log(`[Gmail Sync] Checking prescription message: id=${msgRef.id} | from=${sender} | subject=${subject}`);
+    if (isNonPrescriptionEmail(sender, subject)) continue;
 
     const pdfs = await getPdfAttachments(chemistEmail, msgRef.id, gmail);
-    console.log(`[Gmail Sync] → Found ${pdfs.length} prescription file(s): ${pdfs.map((p) => p.filename).join(", ") || "none"}`);
     if (pdfs.length === 0) continue;
 
     for (const pdf of pdfs) {
-      if (isNonPrescriptionEmail(sender, subject, pdf.filename)) {
-        console.log(`[Gmail Sync] ⏭ Skipping non-prescription file attachment: ${pdf.filename}`);
-        continue;
-      }
+      if (isNonPrescriptionEmail(sender, subject, pdf.filename)) continue;
 
       try {
-        // Deduplicate by filename so identical prescription files (e.g. 1001728491_183845.pdf) aren't saved multiple times
+        // Deduplicate by filename — same prescription file (e.g. 1001728491_183845.pdf) saved only once
         const existingSameFile = await prisma.gmailPrescription.findFirst({
-          where: {
-            chemistEmail,
-            filename: pdf.filename,
-          },
+          where: { chemistEmail, filename: pdf.filename },
         });
 
         if (existingSameFile) {
-          console.log(`[Gmail Sync]   ↳ Same prescription file '${pdf.filename}' already exists in DB (id=${existingSameFile.id}), skipping duplicate.`);
           if (existingSameFile.attachmentId !== pdf.attachmentId) {
             await prisma.gmailPrescription.update({
               where: { id: existingSameFile.id },
@@ -358,7 +340,7 @@ export async function syncGmailInbox(chemistEmail: string): Promise<number> {
           continue;
         }
 
-        console.log(`[Gmail Sync]   ↳ NEW unique prescription! Saving: ${pdf.filename}`);
+        console.log(`[Gmail Sync] New prescription: ${pdf.filename} from ${sender}`);
         const rxRecord = await prisma.gmailPrescription.create({
           data: {
             chemistEmail,
