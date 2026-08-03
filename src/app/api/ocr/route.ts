@@ -249,6 +249,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 });
     }
 
+    // Enforce 5MB file size limit
+    const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      return NextResponse.json(
+        {
+          success: false,
+          error: `File is too large (${fileSizeMB} MB). Maximum allowed size is 5 MB. Please compress the image or use a smaller PDF.`,
+        },
+        { status: 413 }
+      );
+    }
+
     const serviceUrl = process.env.PADDLEOCR_SERVICE_URL || "https://paddle-ocr-dwox.onrender.com/ocr";
     if (!process.env.PADDLEOCR_SERVICE_URL) {
       console.warn("PADDLEOCR_SERVICE_URL is not defined in environment variables, falling back to default Render service URL.");

@@ -169,6 +169,15 @@ function OcrContent() {
       return;
     }
 
+    // Client-side 5MB limit check — show error immediately without API round-trip
+    const MAX_SIZE_MB = 5;
+    const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+    if (selectedFile.size > MAX_SIZE_BYTES) {
+      const sizeMB = (selectedFile.size / (1024 * 1024)).toFixed(2);
+      setOcrError(`File is too large (${sizeMB} MB). Maximum allowed file size is ${MAX_SIZE_MB} MB. Please compress the image or use a smaller PDF.`);
+      return;
+    }
+
     setIsOcrProcessing(true);
     setOcrError(null);
     setPendingResult(null);
