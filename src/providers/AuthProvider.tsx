@@ -178,20 +178,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (response.data.success && response.data.data) {
           const { accessToken, refreshToken, expiration } = response.data.data;
           
+          // Set token in-memory FIRST before any authenticated requests
           setLocalAccessToken(accessToken);
           tokenStorage.setRefreshToken(refreshToken, expiration);
-          
-          let profile: User | null = null;
 
-          try {
-            const profileResponse = await authService.getProfile();
-            profile = normalizeUserData(profileResponse);
-          } catch (profileErr) {
-            console.warn("Failed to fetch fresh profile from endpoint:", profileErr);
-          }
+          // Decode user from token immediately as fallback
+          let profile: User | null = getUserFromToken(accessToken);
 
-          if (!profile) {
-            profile = getUserFromToken(accessToken);
+          // Only call profile endpoint if token is confirmed in-memory
+          if (getLocalAccessToken()) {
+            try {
+              const profileResponse = await authService.getProfile();
+              const freshProfile = normalizeUserData(profileResponse);
+              if (freshProfile) profile = freshProfile;
+            } catch (profileErr: any) {
+              // Silently ignore CORS / network errors — we already have profile from JWT
+              const isCorsOrNetwork =
+                !profileErr?.response ||
+                profileErr?.code === "ERR_NETWORK" ||
+                profileErr?.message?.includes("Network Error");
+              if (!isCorsOrNetwork) {
+                console.warn("Profile endpoint error:", profileErr);
+              }
+            }
           }
 
           if (profile) {
@@ -319,13 +328,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedRefreshToken = tokenStorage.getRefreshToken();
     if (!storedRefreshToken) return;
 
+    // Don't call profile endpoint without a valid in-memory access token
+    if (!getLocalAccessToken()) return;
+
     try {
       let profile: User | null = null;
       try {
         const profileResponse = await authService.getProfile();
         profile = normalizeUserData(profileResponse);
-      } catch (profileErr) {
-        console.warn("Profile endpoint unreachable during refreshProfile:", profileErr);
+      } catch (profileErr: any) {
+        const isCorsOrNetwork =
+          !profileErr?.response ||
+          profileErr?.code === "ERR_NETWORK" ||
+          profileErr?.message?.includes("Network Error");
+        if (!isCorsOrNetwork) {
+          console.warn("Profile endpoint unreachable during refreshProfile:", profileErr);
+        }
       }
 
       if (!profile) {
