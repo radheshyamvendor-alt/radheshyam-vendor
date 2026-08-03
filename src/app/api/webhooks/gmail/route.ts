@@ -88,21 +88,45 @@ async function processEmailNotificationAsync(
       const sender = headers.find((h) => h.name?.toLowerCase() === "from")?.value;
       const subject = headers.find((h) => h.name?.toLowerCase() === "subject")?.value;
 
+      // Skip non-prescription emails (e.g. Microsoft invoices, GitHub notifications)
+      const sLower = (sender || "").toLowerCase();
+      const subLower = (subject || "").toLowerCase();
+      if (
+        sLower.includes("microsoft") ||
+        sLower.includes("github") ||
+        sLower.includes("vercel") ||
+        sLower.includes("google") ||
+        sLower.includes("azure") ||
+        sLower.includes("noreply") ||
+        subLower.includes("invoice") ||
+        subLower.includes("receipt")
+      ) {
+        continue;
+      }
+
       const pdfs = await getPdfAttachments(chemistEmail, msgRef.id);
 
       for (const pdf of pdfs) {
-        const rxRecord = await prisma.gmailPrescription.upsert({
-          where: {
-            chemistEmail_messageId_filename: {
-              chemistEmail,
-              messageId: msgRef.id,
-              filename: pdf.filename,
-            },
-          },
-          update: {
-            attachmentId: pdf.attachmentId,
-          },
-          create: {
+        const fnLower = (pdf.filename || "").toLowerCase();
+        if (fnLower.includes("invoice") || fnLower.includes("receipt")) continue;
+
+        // Deduplicate by filename
+        const existingSameFile = await prisma.gmailPrescription.findFirst({
+          where: { chemistEmail, filename: pdf.filename },
+        });
+
+        if (existingSameFile) {
+          if (existingSameFile.attachmentId !== pdf.attachmentId) {
+            await prisma.gmailPrescription.update({
+              where: { id: existingSameFile.id },
+              data: { attachmentId: pdf.attachmentId },
+            });
+          }
+          continue;
+        }
+
+        const rxRecord = await prisma.gmailPrescription.create({
+          data: {
             chemistEmail,
             sender: sender || "Patient Email",
             subject: subject || "Prescription PDF",

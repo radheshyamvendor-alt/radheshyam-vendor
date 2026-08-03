@@ -209,9 +209,85 @@ export async function downloadAttachment(
   return Buffer.from(base64Data, "base64");
 }
 
+// Helper to detect non-prescription emails (e.g. Microsoft invoice, GitHub, security alerts)
+function isNonPrescriptionEmail(senderStr?: string, subjectStr?: string, filenameStr?: string): boolean {
+  const s = (senderStr || "").toLowerCase();
+  const sub = (subjectStr || "").toLowerCase();
+  const fn = (filenameStr || "").toLowerCase();
+
+  // Skip automated services and system emails
+  if (
+    s.includes("microsoft") ||
+    s.includes("github") ||
+    s.includes("vercel") ||
+    s.includes("google") ||
+    s.includes("azure") ||
+    s.includes("noreply") ||
+    s.includes("no-reply")
+  ) {
+    return true;
+  }
+
+  // Skip non-prescription documents (invoices, receipts, billing statements)
+  if (
+    sub.includes("invoice") ||
+    sub.includes("receipt") ||
+    sub.includes("security alert") ||
+    sub.includes("billing") ||
+    sub.includes("statement") ||
+    fn.includes("invoice") ||
+    fn.includes("receipt") ||
+    fn.includes("statement")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 // ─── Inbox Sync for Prescriptions ─────────────────────────────────────────────
 export async function syncGmailInbox(chemistEmail: string): Promise<number> {
   console.log(`[Gmail Sync] Starting sync for: ${chemistEmail}`);
+
+  // 1. Clean up non-prescription records (e.g. Microsoft invoices) from DB
+  try {
+    await prisma.gmailPrescription.deleteMany({
+      where: {
+        chemistEmail,
+        OR: [
+          { sender: { contains: "microsoft", mode: "insensitive" } },
+          { sender: { contains: "github", mode: "insensitive" } },
+          { sender: { contains: "vercel", mode: "insensitive" } },
+          { sender: { contains: "google", mode: "insensitive" } },
+          { subject: { contains: "invoice", mode: "insensitive" } },
+          { subject: { contains: "receipt", mode: "insensitive" } },
+        ],
+      },
+    });
+
+    // Deduplicate any existing duplicate filename records in DB for this chemist
+    const existingDbItems = await prisma.gmailPrescription.findMany({
+      where: { chemistEmail },
+      orderBy: { receivedAt: "desc" },
+    });
+    const seenFilenames = new Set<string>();
+    const dupIds: string[] = [];
+    for (const item of existingDbItems) {
+      if (seenFilenames.has(item.filename)) {
+        dupIds.push(item.id);
+      } else {
+        seenFilenames.add(item.filename);
+      }
+    }
+    if (dupIds.length > 0) {
+      await prisma.gmailPrescription.deleteMany({
+        where: { id: { in: dupIds } },
+      });
+    }
+  } catch (err) {
+    console.warn("[Gmail Sync] Pre-sync DB cleanup warning:", err);
+  }
+
   const accessToken = await getValidAccessToken(chemistEmail);
   const oauth2Client = createOAuthClient();
   oauth2Client.setCredentials({ access_token: accessToken });
@@ -224,6 +300,7 @@ export async function syncGmailInbox(chemistEmail: string): Promise<number> {
 
   const res = await gmail.users.messages.list({
     userId: "me",
+    q: "has:attachment",
     maxResults: 200,
   });
 
@@ -240,40 +317,48 @@ export async function syncGmailInbox(chemistEmail: string): Promise<number> {
     });
 
     const headers = msg.data.payload?.headers ?? [];
-    const sender = headers.find((h) => h.name?.toLowerCase() === "from")?.value;
-    const subject = headers.find((h) => h.name?.toLowerCase() === "subject")?.value;
+    const sender = headers.find((h) => h.name?.toLowerCase() === "from")?.value ?? undefined;
+    const subject = headers.find((h) => h.name?.toLowerCase() === "subject")?.value ?? undefined;
 
-    console.log(`[Gmail Sync] Checking message: id=${msgRef.id} | from=${sender} | subject=${subject}`);
+    // Filter out non-prescription emails (e.g. Microsoft invoices, GitHub notifications)
+    if (isNonPrescriptionEmail(sender, subject)) {
+      console.log(`[Gmail Sync] ⏭ Skipping non-prescription email: from=${sender} | subject=${subject}`);
+      continue;
+    }
+
+    console.log(`[Gmail Sync] Checking prescription message: id=${msgRef.id} | from=${sender} | subject=${subject}`);
 
     const pdfs = await getPdfAttachments(chemistEmail, msgRef.id, gmail);
     console.log(`[Gmail Sync] → Found ${pdfs.length} prescription file(s): ${pdfs.map((p) => p.filename).join(", ") || "none"}`);
     if (pdfs.length === 0) continue;
 
     for (const pdf of pdfs) {
+      if (isNonPrescriptionEmail(sender, subject, pdf.filename)) {
+        console.log(`[Gmail Sync] ⏭ Skipping non-prescription file attachment: ${pdf.filename}`);
+        continue;
+      }
+
       try {
-        const existing = await prisma.gmailPrescription.findUnique({
+        // Deduplicate by filename so identical prescription files (e.g. 1001728491_183845.pdf) aren't saved multiple times
+        const existingSameFile = await prisma.gmailPrescription.findFirst({
           where: {
-            chemistEmail_messageId_filename: {
-              chemistEmail,
-              messageId: msgRef.id,
-              filename: pdf.filename,
-            },
+            chemistEmail,
+            filename: pdf.filename,
           },
         });
 
-        if (existing) {
-          console.log(`[Gmail Sync]   ↳ Already in DB (id=${existing.id}), skipping.`);
-          // If Gmail generated a fresh attachmentId token, update it on the existing record
-          if (existing.attachmentId !== pdf.attachmentId) {
+        if (existingSameFile) {
+          console.log(`[Gmail Sync]   ↳ Same prescription file '${pdf.filename}' already exists in DB (id=${existingSameFile.id}), skipping duplicate.`);
+          if (existingSameFile.attachmentId !== pdf.attachmentId) {
             await prisma.gmailPrescription.update({
-              where: { id: existing.id },
+              where: { id: existingSameFile.id },
               data: { attachmentId: pdf.attachmentId },
             });
           }
           continue;
         }
 
-        console.log(`[Gmail Sync]   ↳ NEW prescription! Saving: ${pdf.filename}`);
+        console.log(`[Gmail Sync]   ↳ NEW unique prescription! Saving: ${pdf.filename}`);
         const rxRecord = await prisma.gmailPrescription.create({
           data: {
             chemistEmail,
