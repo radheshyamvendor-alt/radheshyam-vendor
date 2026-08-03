@@ -21,6 +21,12 @@ model Order {
   updatedAt          DateTime @updatedAt
   chemistId          String?
   chemistEmail       String?
+
+  // Performance indexes for dashboard queries
+  @@index([chemistEmail])
+  @@index([chemistEmail, status])
+  @@index([chemistEmail, createdAt])
+  @@index([status])
 }
 
 model GmailConnection {
@@ -43,8 +49,12 @@ model GmailPrescription {
   filename     String
   attachmentId String
   messageId    String
-  status       String   @default("PENDING") // PENDING, PROCESSED
+  status       String   @default("PENDING") // PENDING, PROCESSED, ORDERED
   receivedAt   DateTime @default(now())
 
+  // Performance indexes for notification hub and sync queries
+  @@index([chemistEmail])
+  @@index([chemistEmail, status])
+  @@index([chemistEmail, receivedAt])
   @@unique([chemistEmail, messageId, filename])
 }

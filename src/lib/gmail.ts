@@ -261,9 +261,12 @@ export async function syncGmailInbox(chemistEmail: string): Promise<number> {
     });
 
     // Deduplicate any existing duplicate filename records in DB for this chemist
+    // select only id+filename to avoid loading full rows into memory as DB grows
     const existingDbItems = await prisma.gmailPrescription.findMany({
       where: { chemistEmail },
       orderBy: { receivedAt: "desc" },
+      take: 1000,
+      select: { id: true, filename: true },
     });
     const seenFilenames = new Set<string>();
     const dupIds: string[] = [];

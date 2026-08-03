@@ -245,7 +245,7 @@ export default function EmailPrescriptionsHubPage() {
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                All Prescriptions
+                All
               </button>
               <button
                 onClick={() => { setStatusFilter("unread"); setPage(1); }}
