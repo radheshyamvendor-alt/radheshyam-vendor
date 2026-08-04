@@ -108,3 +108,32 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
+// DELETE /api/auth/gmail/prescriptions?id=xxx&email=xxx
+// Deletes a prescription record from the database
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    const email = searchParams.get("email");
+
+    if (!id || !email) {
+      return NextResponse.json({ error: "Missing prescription id or email" }, { status: 400 });
+    }
+
+    await prisma.gmailPrescription.deleteMany({
+      where: {
+        id,
+        chemistEmail: email,
+      },
+    });
+
+    return NextResponse.json({ success: true, message: "Prescription removed successfully" });
+  } catch (error: any) {
+    console.error("Failed to delete prescription:", error);
+    return NextResponse.json(
+      { error: error?.message || "Failed to remove prescription" },
+      { status: 500 }
+    );
+  }
+}
+
